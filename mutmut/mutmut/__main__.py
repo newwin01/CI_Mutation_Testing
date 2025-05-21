@@ -9,7 +9,6 @@ import os
 import resource
 import shutil
 import signal
-import subprocess
 import sys
 from abc import ABC
 from collections import defaultdict
@@ -352,12 +351,7 @@ class PytestRunner(TestRunner):
     def execute_pytest(self, params: list[str], **kwargs):
         import pytest
         params += ['--rootdir=.']
-        if mutmut.config.debug:
-            params = ['-vv'] + params
-            print('python -m pytest ', ' '.join(params))
         exit_code = int(pytest.main(params, **kwargs))
-        if mutmut.config.debug:
-            print('    exit code', exit_code)
         if exit_code == 4:
             raise BadTestExecutionCommandsException(params)
         return exit_code
@@ -900,8 +894,10 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutat
             exit(1)
     print('    done')
 
-    # this can't be the first thing, because it can fail deep inside pytest/django setup and then everything is destroyed
-    run_forced_fail_test(runner)
+    if mutants:
+        run_forced_fail_test(runner)
+    else:
+        print('    no mutants to test')
 
     runner.prepare_main_test_run()
 

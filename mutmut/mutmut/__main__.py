@@ -83,24 +83,6 @@ status_by_exit_code = {
     -11: 'segfault',
 }
 
-emoji_by_status = {
-    'survived': '🙁',
-    'no tests': '🫥',
-    'timeout': '⏰',
-    'suspicious': '🤔',
-    'skipped': '🔇',
-    'check was interrupted by user': '🛑',
-    'not checked': '?',
-    'killed': '🎉',
-    'segfault': '💥',
-}
-
-exit_code_to_emoji = {
-    exit_code: emoji_by_status[status]
-    for exit_code, status in status_by_exit_code.items()
-}
-
-
 def guess_paths_to_mutate():
     """Guess the path to source code to mutate
 
@@ -134,7 +116,7 @@ def record_trampoline_hit(name):
         f = inspect.currentframe()
         c = mutmut.config.max_stack_depth
         while c and f:
-            if 'pytest' in f.f_code.co_filename or 'hammett' in f.f_code.co_filename:
+            if 'pytest' in f.f_code.co_filename:
                 break
             f = f.f_back
             c -= 1
@@ -143,7 +125,6 @@ def record_trampoline_hit(name):
             return
 
     mutmut._stats.add(name)
-
 
 def walk_all_files():
     for path in mutmut.config.paths_to_mutate:
@@ -345,7 +326,6 @@ def change_cwd(path):
 
 def collected_test_names():
     return set(mutmut.duration_by_test.keys())
-
 
 class ListAllTestsResult:
     def __init__(self, *, ids):
@@ -1021,20 +1001,6 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutat
     print()
     print(f'{count_tried / t.total_seconds():.2f} mutations/second')
 
-    if mutant_names:
-        print()
-        print('Mutant results')
-        print('--------------')
-        exit_code_by_key = {}
-        # If the user gave a specific list of mutants, print result for these specifically
-        for m, mutant_name, result in mutants:
-            exit_code_by_key[mutant_name] = m.exit_code_by_key[mutant_name]
-
-        for mutant_name, exit_code in sorted(exit_code_by_key.items()):
-            print(emoji_by_status.get(status_by_exit_code.get(exit_code), '?'), mutant_name)
-
-        print()
-
 
 def tests_for_mutant_names(mutant_names):
     tests = set()
@@ -1173,169 +1139,6 @@ def apply_mutant(mutant_name):
 
     with open(path, 'w') as f:
         f.write(new_module.code)
-
-
-# TODO: junitxml, html commands
-
-@cli.command()
-@click.option("--show-killed", is_flag=True, default=False, help="Display killed mutants.")
-def browse(show_killed):
-    ensure_config_loaded()
-
-    from textual.app import App
-    from textual.containers import Container
-    from textual.widgets import Footer
-    from textual.widgets import DataTable
-    from textual.widgets import Static
-    from textual.widget import Widget
-    from rich.syntax import Syntax
-
-    class ResultBrowser(App):
-        loading_id = None
-        CSS_PATH = "result_browser_layout.tcss"
-        BINDINGS = [
-            ("q", "quit()", "Quit"),
-            ("r", "retest_mutant()", "Retest mutant"),
-            ("f", "retest_function()", "Retest function"),
-            ("m", "retest_module()", "Retest module"),
-            ("a", "apply_mutant()", "Apply mutant to disk"),
-        ]
-
-        columns = [
-            ('path', 'Path'),
-        ] + [
-            (status, Text(emoji, justify='right'))
-            for status, emoji in emoji_by_status.items()
-        ]
-
-        cursor_type = 'row'
-        source_file_mutation_data_and_stat_by_path = None
-
-        def compose(self):
-            with Container(classes='container'):
-                yield DataTable(id='files')
-                yield DataTable(id='mutants')
-            with Widget(id="diff_view_widget"):
-                yield Static(id='diff_view')
-            yield Footer()
-
-        def on_mount(self):
-            # files table
-            # noinspection PyTypeChecker
-            files_table: DataTable = self.query_one('#files')
-            files_table.cursor_type = 'row'
-            for key, label in self.columns:
-                files_table.add_column(key=key, label=label)
-
-            # mutants table
-            # noinspection PyTypeChecker
-            mutants_table: DataTable = self.query_one('#mutants')
-            mutants_table.cursor_type = 'row'
-            mutants_table.add_columns('name', 'status')
-
-            self.read_data()
-            self.populate_files_table()
-
-        def read_data(self):
-            ensure_config_loaded()
-            self.source_file_mutation_data_and_stat_by_path = {}
-
-            for p in walk_source_files():
-                if mutmut.config.should_ignore_for_mutation(p):
-                    continue
-                source_file_mutation_data = SourceFileMutationData(path=p)
-                source_file_mutation_data.load()
-                stat = collect_stat(source_file_mutation_data)
-
-                self.source_file_mutation_data_and_stat_by_path[str(p)] = source_file_mutation_data, stat
-
-        def populate_files_table(self):
-            # noinspection PyTypeChecker
-            files_table: DataTable = self.query_one('#files')
-            # TODO: restore selection
-            selected_row = files_table.cursor_row
-            files_table.clear()
-
-            for p, (source_file_mutation_data, stat) in sorted(self.source_file_mutation_data_and_stat_by_path.items()):
-                row = [p] + [
-                    Text(str(getattr(stat, k.replace(' ', '_'))), justify="right")
-                    for k, _ in self.columns[1:]
-                ]
-                files_table.add_row(*row, key=str(p))
-
-            files_table.move_cursor(row=selected_row)
-
-        def on_data_table_row_highlighted(self, event):
-            if not event.row_key or not event.row_key.value:
-                return
-            if event.data_table.id == 'files':
-                # noinspection PyTypeChecker
-                mutants_table: DataTable = self.query_one('#mutants')
-                mutants_table.clear()
-                source_file_mutation_data, stat = self.source_file_mutation_data_and_stat_by_path[event.row_key.value]
-                for k, v in source_file_mutation_data.exit_code_by_key.items():
-                    status = status_by_exit_code[v]
-                    if status != 'killed' or show_killed:
-                        mutants_table.add_row(k, emoji_by_status[status], key=k)
-            else:
-                assert event.data_table.id == 'mutants'
-                # noinspection PyTypeChecker
-                diff_view: Static = self.query_one('#diff_view')
-                if event.row_key.value is None:
-                    diff_view.update('')
-                else:
-                    diff_view.update('<loading...>')
-                    self.loading_id = event.row_key.value
-
-                    def load_thread():
-                        ensure_config_loaded()
-                        try:
-                            d = get_diff_for_mutant(event.row_key.value)
-                            if event.row_key.value == self.loading_id:
-                                diff_view.update(Syntax(d, "diff"))
-                        except Exception as e:
-                            diff_view.update(f"<{type(e)} {e}>")
-
-                    t = Thread(target=load_thread)
-                    t.start()
-
-        def retest(self, pattern):
-            with self.suspend():
-                browse_index = sys.argv.index('browse')
-                initial_args = sys.argv[:browse_index]
-                subprocess.run([sys.executable, *initial_args, 'run', pattern])
-                input('press enter to return to browser')
-
-            self.read_data()
-            self.populate_files_table()
-
-        def get_mutant_name_from_selection(self):
-            # noinspection PyTypeChecker
-            mutants_table: DataTable = self.query_one('#mutants')
-            if mutants_table.cursor_row is None:
-                return
-
-            return mutants_table.get_row_at(mutants_table.cursor_row)[0]
-
-        def action_retest_mutant(self):
-            self.retest(self.get_mutant_name_from_selection())
-
-        def action_retest_function(self):
-            self.retest(self.get_mutant_name_from_selection().rpartition('__mutmut_')[0] + '__mutmut_*')
-
-        def action_retest_module(self):
-            self.retest(self.get_mutant_name_from_selection().rpartition('.')[0] + '.*')
-
-        def action_apply_mutant(self):
-            ensure_config_loaded()
-            # noinspection PyTypeChecker
-            mutants_table: DataTable = self.query_one('#mutants')
-            if mutants_table.cursor_row is None:
-                return
-            apply_mutant(mutants_table.get_row_at(mutants_table.cursor_row)[0])
-
-    ResultBrowser().run()
-
 
 if __name__ == '__main__':
     cli()

@@ -422,46 +422,9 @@ class PytestRunner(TestRunner):
 
         return ListAllTestsResult(ids=collector.nodeids)
 
-
-class HammettRunner(TestRunner):
-    def __init__(self):
-        self.hammett_kwargs = None
-
-    def run_stats(self, *, tests):
-        import hammett
-        print('Running hammett stats...')
-
-        def post_test_callback(_name, **_):
-            for function in mutmut._stats:
-                mutmut.tests_by_mangled_function_name[function].add(_name)
-            mutmut._stats.clear()
-
-        return hammett.main(quiet=True, fail_fast=True, disable_assert_analyze=True, post_test_callback=post_test_callback, use_cache=False, insert_cwd=False)
-
-    def run_forced_fail(self):
-        import hammett
-        return hammett.main(quiet=True, fail_fast=True, disable_assert_analyze=True, use_cache=False, insert_cwd=False)
-
-    def prepare_main_test_run(self):
-        import hammett
-        self.hammett_kwargs = hammett.main_setup(
-            quiet=True,
-            fail_fast=True,
-            disable_assert_analyze=True,
-            use_cache=False,
-            insert_cwd=False,
-        )
-
-    def run_tests(self, *, mutant_name, tests):
-        import hammett
-        hammett.Config.workerinput = dict(workerinput=f'_{mutant_name}')
-        return hammett.main_run_tests(**self.hammett_kwargs, tests=tests)
-
-
 def mangled_name_from_mutant_name(mutant_name):
     assert '__mutmut_' in mutant_name, mutant_name
     return mutant_name.partition('__mutmut_')[0]
-
 
 def orig_function_and_class_names_from_key(mutant_name):
     r = mangled_name_from_mutant_name(mutant_name)
@@ -548,10 +511,18 @@ def calculate_summary_stats(source_file_mutation_data_by_path):
         segfault=sum(x.segfault for x in stats),
     )
 
-
 def print_stats(source_file_mutation_data_by_path, force_output=False):
     s = calculate_summary_stats(source_file_mutation_data_by_path)
-    print_status(f'{(s.total - s.not_checked)}/{s.total}  🎉 {s.killed} 🫥 {s.no_tests}  ⏰ {s.timeout}  🤔 {s.suspicious}  🙁 {s.survived}  🔇 {s.skipped}', force_output=force_output)
+
+    print('    summary:')
+    print(f'    {s.total} mutants, {s.killed} killed, {s.survived} survived, {s.no_tests} no tests')
+
+    for x in source_file_mutation_data_by_path.values():
+        print(f'    {x.path}:')
+        for k, v in x.exit_code_by_key.items():
+            if v is None:
+                continue
+            print(f'        {k}: {status_by_exit_code[v]}')
 
 
 def run_forced_fail_test(runner):
@@ -985,7 +956,6 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutat
 
         # Now do mutation
         for m, mutant_name, result in mutants:
-            print_stats(source_file_mutation_data_by_path)
 
             mutant_name = mutant_name.replace('__init__.', '')
 

@@ -21,12 +21,12 @@ class Mutation:
     contained_by_top_level_function: Union[cst.FunctionDef, None]
 
 
-def mutate_file_contents(filename: str, code: str) -> tuple[str, Sequence[str]]:
+def mutate_file_contents(filename: str, code: str, mutate_lines: set[int] = None) -> tuple[str, Sequence[str]]:
     """Create mutations for `code` and merge them to a single mutated file with trampolines.
 
     :return: A tuple of (mutated code, list of mutant function names)"""
     try:
-        module, mutations = create_mutations(code)
+        module, mutations = create_mutations(code, mutate_lines)
     except cst.ParserSyntaxError as e:
         warnings.warn(SyntaxWarning(f'Unsupported syntax in {filename} ({str(e)}), skipping'))
         return code, []
@@ -35,7 +35,7 @@ def mutate_file_contents(filename: str, code: str) -> tuple[str, Sequence[str]]:
 
 
 def create_mutations(
-    code: str
+    code: str, mutate_lines: set[int] = None
 ) -> tuple[cst.Module, list[Mutation]]:
     """Parse the code and create mutations."""
     ignored_lines = pragma_no_mutate_lines(code)
@@ -43,7 +43,7 @@ def create_mutations(
     module = cst.parse_module(code)
 
     metadata_wrapper = MetadataWrapper(module)
-    visitor = MutationVisitor(mutation_operators, ignored_lines)
+    visitor = MutationVisitor(mutation_operators, ignored_lines, mutate_lines)
     module = metadata_wrapper.visit(visitor)
 
     return module, visitor.mutations
@@ -98,10 +98,11 @@ class MutationVisitor(cst.CSTVisitor):
 
     METADATA_DEPENDENCIES = (PositionProvider, OuterFunctionProvider)
 
-    def __init__(self, operators: OPERATORS_TYPE, ignore_lines: set[int]):
+    def __init__(self, operators: OPERATORS_TYPE, ignore_lines: set[int], mutate_lines: set[int]):
         self.mutations: list[Mutation] = []
         self._operators = operators
         self._ignored_lines = ignore_lines
+        self._mutate_lines = mutate_lines
 
     def on_visit(self, node):
         if self._skip_node_and_children(node):
@@ -129,7 +130,7 @@ class MutationVisitor(cst.CSTVisitor):
         # currently, the position metadata does not always exist
         # (see https://github.com/Instagram/LibCST/issues/1322)
         position = self.get_metadata(PositionProvider,node, None)
-        if position and position.start.line in self._ignored_lines:
+        if position and self._mutate_lines is not None and position.start.line not in self._mutate_lines:
             return False
         return True
 

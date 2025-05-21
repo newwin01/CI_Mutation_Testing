@@ -186,12 +186,12 @@ def copy_src_dir():
             shutil.copyfile(path, output_path)
 
 
-def create_mutants(max_children: int):
+def create_mutants(max_children: int, mutate_lines=None):
     with Pool(processes=max_children) as p:
-        p.map(create_file_mutants, walk_source_files())
+        p.starmap(create_file_mutants, [(path, mutate_lines) for path in walk_source_files()])
 
 
-def create_file_mutants(path: Path):
+def create_file_mutants(path: Path, mutate_lines=None):
     print(path)
     output_path = Path('mutants') / path
     makedirs(output_path.parent, exist_ok=True)
@@ -199,7 +199,7 @@ def create_file_mutants(path: Path):
     if mutmut.config.should_ignore_for_mutation(path):
         shutil.copy(path, output_path)
     else:
-        create_mutants_for_file(path, output_path)
+        create_mutants_for_file(path, output_path, mutate_lines)
 
 
 def copy_also_copy_files():
@@ -216,14 +216,14 @@ def copy_also_copy_files():
             shutil.copytree(path, destination, dirs_exist_ok=True)
 
 
-def create_mutants_for_file(filename, output_path):
+def create_mutants_for_file(filename, output_path, mutate_lines=None):
     input_stat = os.stat(filename)
 
     with open(filename) as f:
         source = f.read()
 
     with open(output_path, 'w') as out:
-        mutant_names, hash_by_function_name = write_all_mutants_to_file(out=out, source=source, filename=filename)
+        mutant_names, hash_by_function_name = write_all_mutants_to_file(out=out, source=source, filename=filename, mutate_lines=mutate_lines)
 
     # validate no syntax errors of mutants
     with open(output_path) as f:
@@ -247,8 +247,8 @@ def create_mutants_for_file(filename, output_path):
     os.utime(output_path, (input_stat.st_atime, input_stat.st_mtime))
 
 
-def write_all_mutants_to_file(*, out, source, filename):
-    result, mutant_names = mutate_file_contents(filename, source)
+def write_all_mutants_to_file(*, out, source, filename, mutate_lines=None):
+    result, mutant_names = mutate_file_contents(filename, source, mutate_lines)
     out.write(result)
 
     # TODO: function hashes are currently not used. Reimplement this when needed.
@@ -880,16 +880,22 @@ def timeout_checker(mutants):
 
 @cli.command()
 @click.option('--max-children', type=int)
+@click.option('--lines', type=str, default=None, help="Comma-separated line numbers to mutate (e.g. 10,12,15)")
 @click.argument('mutant_names', required=False, nargs=-1)
-def run(mutant_names, *, max_children):
+def run(mutant_names, *, max_children, lines: str):
     # used to copy the global mutmut.config to subprocesses
     set_start_method('fork')
 
+    if lines:
+        mutate_lines = set(int (x) for x in lines.split(',') if x.strip())
+    else:
+        mutate_lines = None
+
     assert isinstance(mutant_names, (tuple, list)), mutant_names
-    _run(mutant_names, max_children)
+    _run(mutant_names, max_children, mutate_lines)
 
 # separate function, so we can call it directly from the tests
-def _run(mutant_names: Union[tuple, list], max_children: Union[None, int]):
+def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutate_lines=None):
     # TODO: run no-ops once in a while to detect if we get false negatives
     # TODO: we should be able to get information on which tests killed mutants, which means we can get a list of tests and how many mutants each test kills. Those that kill zero mutants are redundant!
     os.environ['MUTANT_UNDER_TEST'] = 'mutant_generation'
@@ -902,7 +908,7 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int]):
     makedirs(Path('mutants'), exist_ok=True)
     with CatchOutput(spinner_title='Generating mutants'):
         copy_src_dir()
-        create_mutants(max_children)
+        create_mutants(max_children, mutate_lines) # 
         copy_also_copy_files()
 
     time = datetime.now() - start

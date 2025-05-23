@@ -162,8 +162,11 @@ def copy_src_dir():
         if isdir(path):
             shutil.copytree(path, output_path, dirs_exist_ok=True)
         else:
-            output_path.parent.mkdir(exist_ok=True, parents=True)
-            shutil.copyfile(path, output_path)
+            package_dir = path.parent
+            output_package_dir = Path('mutants') / package_dir
+            if not output_package_dir.exists():
+                # output_path.parent.mkdir(exist_ok=True, parents=True)
+                shutil.copytree(package_dir, output_package_dir, dirs_exist_ok=True)
 
 
 def create_mutants(max_children: int, mutate_lines=None):

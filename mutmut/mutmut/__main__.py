@@ -194,6 +194,7 @@ def copy_also_copy_files():
         if not path.exists():
             continue
         if path.is_file():
+            destination.parent.mkdir(exist_ok=True, parents=True)
             shutil.copy(path, destination)
         else:
             shutil.copytree(path, destination, dirs_exist_ok=True)
@@ -627,20 +628,27 @@ def ensure_config_loaded():
         mutmut.config = load_config()
 
 
-def load_config():
+def load_config(test_file: str = None):
     s = config_reader()
 
-    return Config(
-        do_not_mutate=s('do_not_mutate', []),
-        also_copy=[
-            Path(y)
-            for y in s('also_copy', [])
-        ] + [
+    also_copy = [
+        Path(y)
+        for y in s('also_copy', [])
+    ]
+
+    if test_file:
+        also_copy = [Path(test_file)]
+    else:
+        also_copy += [
             Path('tests/'),
             Path('test/'),
             Path('setup.cfg'),
             Path('pyproject.toml'),
-        ] + list(Path('.').glob('test*.py')),
+        ] + list(Path('.').glob('test*.py'))
+
+    return Config(
+        do_not_mutate=s('do_not_mutate', []),
+        also_copy= also_copy,
         max_stack_depth=s('max_stack_depth', -1),
         debug=s('debug', False),
         paths_to_mutate=[
@@ -830,7 +838,8 @@ def timeout_checker(mutants):
 @click.option('--max-children', type=int)
 @click.option('--lines', type=str, default=None, help="Comma-separated line numbers to mutate (e.g. 10,12,15)")
 @click.argument('mutant_names', required=False, nargs=-1)
-def run(mutant_names, *, max_children, lines: str):
+@click.option('--test-file', type=str, default=None, help="Test file to copy instead of all test files")
+def run(mutant_names, *, max_children, lines: str, test_file: str):
     # used to copy the global mutmut.config to subprocesses
     set_start_method('fork')
 
@@ -840,6 +849,7 @@ def run(mutant_names, *, max_children, lines: str):
         mutate_lines = None
 
     assert isinstance(mutant_names, (tuple, list)), mutant_names
+    mutmut.config = load_config(test_file=test_file)
     _run(mutant_names, max_children, mutate_lines)
 
 # separate function, so we can call it directly from the tests

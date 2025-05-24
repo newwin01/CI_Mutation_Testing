@@ -236,6 +236,7 @@ def combine_mutations_to_source(module: cst.Module, mutations: Sequence[Mutation
             # mutant_name과 desc 매핑
             for i, mutant_name in enumerate(mutant_names):
                 mutant_name_to_desc[mutant_name] = func_mutants[i].mutation_desc
+                
         elif isinstance(statement, cst.ClassDef):
             cls = statement
             if not isinstance(cls.body, cst.IndentedBlock):
@@ -253,7 +254,7 @@ def combine_mutations_to_source(module: cst.Module, mutations: Sequence[Mutation
                     # mutant_name과 desc 매핑
                     for i, mutant_name in enumerate(mutant_names):
                         mutant_name_to_desc[mutant_name] = method_mutants[i].mutation_desc
-                        print(f"Mutated {cls.name.value}.{method.name.value} to {mutant_name}: {method_mutants[i].mutation_desc}")
+                        
 
                 result.append(cls.with_changes(body=cls.body.with_changes(body=mutated_body)))
         else:

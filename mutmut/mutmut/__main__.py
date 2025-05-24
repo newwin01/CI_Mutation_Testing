@@ -883,9 +883,8 @@ def save_survived_mutants_info(source_file_mutation_data_by_path, mutants_descs,
                         "test_code": test_code
                     })
 
-                # 
-                short_mutant_name = mutant_name.split('.', 1)[-1]
-                mutation_desc = mutant_name_to_desc.get(short_mutant_name, "")
+                short_mutant_name = mutant_name.split('.')[-1]
+                mutation_desc = mutant_name_to_desc.get(mutant_name) or mutant_name_to_desc.get(short_mutant_name, "")
                 survived_info.append({
                     "mutant_name": mutant_name,
                     "source_file": str(path),

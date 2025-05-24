@@ -853,6 +853,21 @@ def run(mutant_names, *, max_children, lines: str, test_file: str):
     mutmut.config = load_config(test_file=test_file)
     _run(mutant_names, max_children, mutate_lines)
 
+def save_survived_mutants_info(source_file_mutation_data_by_path, output_path="mutants/survived_mutants.json"):
+    survived_info = []
+    for path, m in source_file_mutation_data_by_path.items():
+        for mutant_name, exit_code in m.exit_code_by_key.items():
+            if exit_code == 0:  # survived
+                tests = list(mutmut.tests_by_mangled_function_name.get(mangled_name_from_mutant_name(mutant_name), []))
+                survived_info.append({
+                    "mutant_name": mutant_name,
+                    "source_file": path,
+                    "tests": tests,
+                })
+    with open(output_path, "w") as f:
+        json.dump(survived_info, f, indent=2)
+
+
 # separate function, so we can call it directly from the tests
 def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutate_lines=None):
     # TODO: run no-ops once in a while to detect if we get false negatives
@@ -1010,6 +1025,9 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutat
     print_stats(source_file_mutation_data_by_path, force_output=True)
     print()
     print(f'{count_tried / t.total_seconds():.2f} mutations/second')
+
+    save_survived_mutants_info(source_file_mutation_data_by_path)
+
 
 
 def tests_for_mutant_names(mutant_names):

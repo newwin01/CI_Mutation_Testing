@@ -158,6 +158,7 @@ class BadTestExecutionCommandsException(Exception):
 
 def copy_src_dir():
     for path in mutmut.config.paths_to_mutate:
+        path = Path(path)  
         output_path: Path = Path('mutants') / path
         if isdir(path):
             shutil.copytree(path, output_path, dirs_exist_ok=True)

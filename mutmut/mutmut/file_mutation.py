@@ -10,6 +10,7 @@ from libcst.metadata import PositionProvider, MetadataWrapper
 import libcst.matchers as m
 from mutmut.trampoline_templates import build_trampoline, mangle_function_name, trampoline_impl, yield_from_trampoline_impl
 from mutmut.node_mutation import mutation_operators, OPERATORS_TYPE
+import difflib
 
 NEVER_MUTATE_FUNCTION_NAMES = { "__getattribute__", "__setattr__", "__new__" }
 NEVER_MUTATE_FUNCTION_CALLS = { "len", "isinstance" }
@@ -19,9 +20,10 @@ class Mutation:
     original_node: cst.CSTNode
     mutated_node: cst.CSTNode
     contained_by_top_level_function: Union[cst.FunctionDef, None]
+    mutation_desc: str 
 
 
-def mutate_file_contents(filename: str, code: str, mutate_lines: set[int] = None) -> tuple[str, Sequence[str]]:
+def mutate_file_contents(filename: str, code: str, mutate_lines: set[int] = None) -> tuple[str, Sequence[str], dict]:
     """Create mutations for `code` and merge them to a single mutated file with trampolines.
 
     :return: A tuple of (mutated code, list of mutant function names)"""
@@ -90,6 +92,20 @@ class OuterFunctionVisitor(cst.CSTVisitor):
         return True
 
 
+def code_diff(orig_code: str, mutated_code: str) -> str:
+    diff = difflib.unified_diff(
+        orig_code.splitlines(),
+        mutated_code.splitlines(),
+        fromfile='original',
+        tofile='mutated',
+        lineterm=''
+    )
+    return '\n'.join(diff)
+
+def get_function_code(node: cst.FunctionDef) -> str:
+    # node is a FunctionDef
+    return cst.Module([node]).code
+
 class MutationVisitor(cst.CSTVisitor):
     """Iterate through all nodes in the module and create mutations for them.
     Ignore nodes at lines `ignore_lines` and several other cases (e.g. nodes within type annotations).
@@ -118,10 +134,30 @@ class MutationVisitor(cst.CSTVisitor):
         for t, operator in self._operators:
             if isinstance(node, t):
                 for mutated_node in operator(node):
+                        # mutation 설명 생성
+                    try:
+                        # 위치 정보
+                        pos = self.get_metadata(PositionProvider, node, None)
+                        line = pos.start.line if pos else "?"
+                        func_node = self.get_metadata(OuterFunctionProvider, node, None)
+                        if func_node and isinstance(func_node, cst.FunctionDef):
+                            orig_code = cst.Module([func_node]).code
+                            # 변이 함수 생성
+                            mutated_func = func_node.deep_replace(node, mutated_node)
+                            mutated_code = cst.Module([mutated_func]).code
+                        else:
+                            # fallback: 노드 단위
+                            orig_code = node.code if hasattr(node, "code") else str(node)
+                            mutated_code = mutated_node.code if hasattr(mutated_node, "code") else str(mutated_node)
+                        diff = code_diff(orig_code, mutated_code)
+                        mutation_desc = f"Line {line}:\n{diff}"
+                    except Exception:
+                        mutation_desc = "mutation info unavailable"
                     mutation = Mutation(
                         original_node=node,
                         mutated_node=mutated_node,
                         contained_by_top_level_function=self.get_metadata(OuterFunctionProvider, node, None), # type: ignore
+                        mutation_desc=mutation_desc,
                     )
                     self.mutations.append(mutation)
 
@@ -169,30 +205,24 @@ trampoline_impl_cst[-1] = trampoline_impl_cst[-1].with_changes(leading_lines = [
 yield_from_trampoline_impl_cst = list(cst.parse_module(yield_from_trampoline_impl).body)
 yield_from_trampoline_impl_cst[-1] = yield_from_trampoline_impl_cst[-1].with_changes(leading_lines = [cst.EmptyLine(), cst.EmptyLine()])
 
-
-def combine_mutations_to_source(module: cst.Module, mutations: Sequence[Mutation]) -> tuple[str, Sequence[str]]:
+def combine_mutations_to_source(module: cst.Module, mutations: Sequence[Mutation]) -> tuple[str, Sequence[str], dict]:
     """Create mutated functions and trampolines for all mutations and compile them to a single source code.
     
     :param module: The original parsed module
     :param mutations: Mutations that should be applied.
-    :return: Mutated code and list of mutation names"""
+    :return: Mutated code, list of mutant names, and mutant_name->desc mapping"""
 
-    # copy start of the module (in particular __future__ imports)
     result: list[MODULE_STATEMENT] = get_statements_until_func_or_class(module.body)
     mutation_names: list[str] = []
+    mutant_name_to_desc: dict = {}
 
-    # statements we still need to potentially mutate and add to the result
     remaining_statements = module.body[len(result):]
 
-    # trampoline functions
     result.extend(trampoline_impl_cst)
     result.extend(yield_from_trampoline_impl_cst)
 
     mutations_within_function = group_by_top_level_node(mutations)
 
-    # We now iterate through all top-level nodes.
-    # If they are a function or class method, we mutate and add trampolines.
-    # Else we keep the original node without modifications.
     for statement in remaining_statements:
         if isinstance(statement, cst.FunctionDef):
             func = statement
@@ -203,10 +233,12 @@ def combine_mutations_to_source(module: cst.Module, mutations: Sequence[Mutation
             nodes, mutant_names = function_trampoline_arrangement(func, func_mutants, class_name=None)
             result.extend(nodes)
             mutation_names.extend(mutant_names)
+            # mutant_name과 desc 매핑
+            for i, mutant_name in enumerate(mutant_names):
+                mutant_name_to_desc[mutant_name] = func_mutants[i].mutation_desc
         elif isinstance(statement, cst.ClassDef):
             cls = statement
             if not isinstance(cls.body, cst.IndentedBlock):
-                # we don't mutate single-line classes, e.g. `class A: a = 1; b = 2`
                 result.append(cls)
             else:
                 mutated_body = []
@@ -218,13 +250,17 @@ def combine_mutations_to_source(module: cst.Module, mutations: Sequence[Mutation
                     nodes, mutant_names = function_trampoline_arrangement(method, method_mutants, class_name=cls.name.value)
                     mutated_body.extend(nodes)
                     mutation_names.extend(mutant_names)
+                    # mutant_name과 desc 매핑
+                    for i, mutant_name in enumerate(mutant_names):
+                        mutant_name_to_desc[mutant_name] = method_mutants[i].mutation_desc
+                        print(f"Mutated {cls.name.value}.{method.name.value} to {mutant_name}: {method_mutants[i].mutation_desc}")
 
                 result.append(cls.with_changes(body=cls.body.with_changes(body=mutated_body)))
         else:
             result.append(statement)
 
     mutated_module = module.with_changes(body=result)
-    return mutated_module.code, mutation_names
+    return mutated_module.code, mutation_names, mutant_name_to_desc
 
 def function_trampoline_arrangement(function: cst.FunctionDef, mutants: Iterable[Mutation], class_name: Union[str, None]) -> tuple[Sequence[MODULE_STATEMENT], Sequence[str]]:
     """Create mutated functions and a trampoline that switches between original and mutated versions.

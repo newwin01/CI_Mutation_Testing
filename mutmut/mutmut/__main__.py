@@ -233,7 +233,7 @@ def create_mutants_for_file(filename, output_path, mutate_lines=None):
 
 
 def write_all_mutants_to_file(*, out, source, filename, mutate_lines=None):
-    result, mutant_names = mutate_file_contents(filename, source, mutate_lines)
+    result, mutant_names, _ = mutate_file_contents(filename, source, mutate_lines)
     out.write(result)
 
     # TODO: function hashes are currently not used. Reimplement this when needed.
@@ -853,19 +853,47 @@ def run(mutant_names, *, max_children, lines: str, test_file: str):
     mutmut.config = load_config(test_file=test_file)
     _run(mutant_names, max_children, mutate_lines)
 
-def save_survived_mutants_info(source_file_mutation_data_by_path, output_path="mutants/survived_mutants.json"):
+def get_function_source_from_file(filepath, func_name):
+    
+    import ast
+    with open(filepath, "r", encoding="utf-8") as f:
+        source = f.read()
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == func_name:
+            return ast.get_source_segment(source, node)
+    return None
+
+def save_survived_mutants_info(source_file_mutation_data_by_path, mutants_descs, output_path="mutants/survived_mutants.json"):
     survived_info = []
     for path, m in source_file_mutation_data_by_path.items():
+        # 파일별 mutant_name -> desc 매핑 가져오기
+        mutant_name_to_desc = mutants_descs.get(str(path), {})
+
         for mutant_name, exit_code in m.exit_code_by_key.items():
             if exit_code == 0:  # survived
-                tests = list(mutmut.tests_by_mangled_function_name.get(mangled_name_from_mutant_name(mutant_name), []))
+
+                test_infos = []
+                for test in mutmut.tests_by_mangled_function_name.get(mangled_name_from_mutant_name(mutant_name), []):
+                    test_file, _, test_func = test.partition("::")
+                    test_func = test_func.replace("()", "")
+                    test_code = get_function_source_from_file(test_file, test_func) if test_func else None
+                    test_infos.append({
+                        "test_name": test,
+                        "test_code": test_code
+                    })
+
+                # 
+                short_mutant_name = mutant_name.split('.', 1)[-1]
+                mutation_desc = mutant_name_to_desc.get(short_mutant_name, "")
                 survived_info.append({
                     "mutant_name": mutant_name,
-                    "source_file": path,
-                    "tests": tests,
+                    "source_file": str(path),
+                    "mutation_desc": mutation_desc,
+                    "tests": test_infos,
                 })
     with open(output_path, "w") as f:
-        json.dump(survived_info, f, indent=2)
+        json.dump(survived_info, f, indent=2, ensure_ascii=False)
 
 
 # separate function, so we can call it directly from the tests
@@ -1026,8 +1054,17 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutat
     print()
     print(f'{count_tried / t.total_seconds():.2f} mutations/second')
 
-    save_survived_mutants_info(source_file_mutation_data_by_path)
+        
+    mutants_descs = {}
+    for path in walk_source_files():
+        if mutmut.config.should_ignore_for_mutation(path):
+            continue
+        with open(path) as f:
+            code = f.read()
+        _, _, mutant_name_to_desc = mutate_file_contents(str(path), code)
+        mutants_descs[str(path)] = mutant_name_to_desc
 
+    save_survived_mutants_info(source_file_mutation_data_by_path, mutants_descs)
 
 
 def tests_for_mutant_names(mutant_names):

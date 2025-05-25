@@ -20,13 +20,12 @@ jobs:
         pip install -r mutmut/requirements.txt || true
         pip install -e mutmut || true
 
-    - name: 🔬 Run mutation testing
+    - name: 🔬 Run mutation testing (custom main)
       run: |
-        cd mutmut
-        mutmut run
+        python mutmut/mutmut/__main__.py
 
     - name: 📤 Upload mutation results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mutation-results
         path: mutmut/mutants/

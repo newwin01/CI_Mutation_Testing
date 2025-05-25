@@ -27,7 +27,7 @@ jobs:
 
     - name: 🔬 Run mutation testing (custom main)
       run: |
-        python mutmut/mutmut/__main__.py
+        python -m mutmut run
 
     - name: 📤 Upload mutation results
       uses: actions/upload-artifact@v4

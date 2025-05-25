@@ -1,0 +1,32 @@
+name: Mutation Testing CI
+
+on: [push, pull_request]
+
+jobs:
+  mutation-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📦 Checkout repository
+      uses: actions/checkout@v3
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.10
+
+    - name: 📥 Install dependencies
+      run: |
+        pip install -r mutmut/requirements.txt || true
+        pip install -e mutmut || true
+
+    - name: 🔬 Run mutation testing
+      run: |
+        cd mutmut
+        mutmut run
+
+    - name: 📤 Upload mutation results
+      uses: actions/upload-artifact@v3
+      with:
+        name: mutation-results
+        path: mutmut/mutants/

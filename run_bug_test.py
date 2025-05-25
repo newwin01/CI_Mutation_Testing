@@ -63,7 +63,12 @@ def main():
     line_str = ",".join(map(str, changed_lines))
 
     print("🧪 Running mutmut...")
-    run_cmd(f"python -m mutmut run --paths-to-mutate . --lines {line_str}")
+    with open("setup.cfg", "w") as f:
+        f.write("[mutmut]\n")
+        f.write("paths_to_mutate = .\n")
+        f.write("tests_dir = tests/\n")
+
+    run_cmd(f"python -m mutmut run --lines {line_str}")
 
     print("📤 Mutation testing completed. Check `mutants/survived_mutants.json` for survivors.")
 

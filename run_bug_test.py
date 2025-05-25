@@ -33,7 +33,10 @@ def main():
     os.environ["PATH"] += f":{os.path.abspath(BUGSINPY_BIN)}"
 
     print("📦 Checking out buggy version of keras...")
-    run_cmd(f"bugsinpy-checkout -p {PROJECT} -v 0 -i {BUG_ID} -w {WORK_DIR}")
+    checkout_result = run_cmd(f"bugsinpy-checkout -p {PROJECT} -v 0 -i {BUG_ID} -w {WORK_DIR}")
+
+    print("📂 Directory structure after checkout:")
+    print(run_cmd(f"find {WORK_DIR}"))
 
     source_path = os.path.join(WORK_DIR, PROJECT, "source")
     os.chdir(source_path)

@@ -9,15 +9,28 @@ to run on windows, you must run inside WSL.
 ------------
 
 - **New Options for Mutmut Run:**  
-    - Selective Line Mutation (--lines): You can now specify a comma-separated list of line numbers to mutate using the --lines option (e.g., --lines=10,12,15). Only mutations on these lines will be generated and tested, allowing for targeted mutation testing and faster feedback when working on specific code sections.
-    - Test File Selection (--test-file): The --test-file option allows you to specify a single test file to copy and use during mutation testing, instead of copying all test files. This is helpful for focused testing or when working with large test suites.
+- Selective Line Mutation (--lines):
+You can now specify a comma-separated list of line numbers to mutate using the --lines option (e.g., --lines=10,12,15).
+Only mutations on these lines will be generated and tested, allowing for targeted mutation testing and much faster feedback when working on specific code sections.
+This is especially useful for large codebases or when you want to focus mutation testing on recently changed or critical lines.
+- Test File Selection (--test-file):
+The --test-file option allows you to specify a single test file to copy and use during mutation testing, instead of copying all test files.
+This enables focused mutation testing and reduces setup time, which is helpful when working with large test suites or when you want to isolate the effect of a specific test file.
 
 - **Mutation Description Tracking:**  
-  Each generated mutant now includes a detailed mutation description, including the line number and a unified diff showing the exact code change. This information is used to help users understand what each mutant does and is also exported for further analysis.
-
+Each generated mutant now includes a detailed mutation description.
+This description contains:
+- The line number where the mutation occurred.
+A unified diff (in standard patch format) showing the exact code change between the original and mutated code.
+This makes it easy to understand what each mutant does at a glance, and helps with debugging, test improvement, and reporting.
+The mutation description is automatically tracked and associated with each mutant throughout the mutation testing process.
 - **Survived Mutants Export:**  
-  After running mutation testing, information about surviving mutants—including their mutation description, source file, and related tests—is saved to `mutants/survived_mutants.json`.
-
+After running mutation testing, information about surviving mutants is exported to mutants/survived_mutants.json.
+For each surviving mutant, the following information is included:
+- The mutant's unique name and the source file it was generated from.
+- The detailed mutation description (including line number and code diff).
+- The list of tests that were run against the mutant, including the test function name and the source code of each test.
+- This export allows for easy review of surviving mutants, helps in identifying areas where tests can be improved, and provides a clear record of mutation testing results.
 
 Install and run
 ---------------

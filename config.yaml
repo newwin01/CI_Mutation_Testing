@@ -1,0 +1,2 @@
+olama_url:   "http://localhost:11434/v1/chat/completions"
+olama_model: "codellama-7b-instruct"

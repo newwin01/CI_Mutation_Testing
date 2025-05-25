@@ -15,6 +15,9 @@ jobs:
       with:
         python-version: "3.10"
 
+    - name: ✅ Add BugsInPy CLI to PATH
+      run: echo "$GITHUB_WORKSPACE/BugsInPy/framework/bin" >> $GITHUB_PATH
+
     - name: 🐍 Confirm Python version
       run: |
         python --version
@@ -25,9 +28,9 @@ jobs:
         pip install -r mutmut/requirements.txt || true
         pip install -e mutmut || true
 
-    - name: 🔬 Run mutation testing (custom main)
+    - name: 🧪 Run diff-based mutation testing on keras bug
       run: |
-        python mutmut/mutmut/__main__.py
+        python run_bug_test.py
 
     - name: 📤 Upload mutation results
       uses: actions/upload-artifact@v4

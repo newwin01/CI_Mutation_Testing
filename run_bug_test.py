@@ -65,7 +65,7 @@ def main():
     print("🧪 Running mutmut...")
     with open("setup.cfg", "w") as f:
         f.write("[mutmut]\n")
-        f.write("paths_to_mutate = .\n")
+        f.write("paths_to_mutate = keras/losses.py\n")
         f.write("tests_dir = tests/\n")
 
     run_cmd(f"python -m mutmut run --lines {line_str}")

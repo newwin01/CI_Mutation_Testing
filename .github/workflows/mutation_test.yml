@@ -27,6 +27,7 @@ jobs:
       run: |
         pip install -r mutmut/requirements.txt || true
         pip install -e mutmut || true
+        pip install python_toolbox
 
     - name: 🧪 Run diff-based mutation testing on keras bug
       run: |

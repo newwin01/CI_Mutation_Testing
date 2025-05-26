@@ -37,7 +37,7 @@ jobs:
         echo "$HOME/.ollama/bin" >> $GITHUB_PATH
         
     - name: 📥 Pull CodeLlama-7b model
-      run: ollama pull codellama-7b
+      run: ollama pull codellama:7b-instruct
 
     - name: 🧪 Run diff-based mutation testing on keras bug
       run: |

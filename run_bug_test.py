@@ -38,11 +38,14 @@ def find_source_path(base_dir):
 def main():
     os.environ["PATH"] += f":{os.path.abspath(BUGSINPY_BIN)}"
 
-    print("📦 Checking out buggy version of keras...")
+    print(f"📦 Checking out buggy version of {PROJECT}...")
     run_cmd(f"bugsinpy-checkout -p {PROJECT} -v 0 -i {BUG_ID} -w {WORK_DIR}")
 
     print("📂 Directory structure after checkout:")
     print(run_cmd(f"find {WORK_DIR}"))
+
+    print("📄 Python files under checkout:")
+    print(run_cmd(f"find {WORK_DIR} -name '*.py'"))
 
     source_path = find_source_path(WORK_DIR)
     if not source_path:
@@ -61,13 +64,14 @@ def main():
         return
 
     line_str = ",".join(map(str, changed_lines))
-    
+
+    # Make sure we can import `pysnooper`
     os.environ["PYTHONPATH"] = os.getcwd()
 
     print("🧪 Running mutmut...")
     with open("setup.cfg", "w") as f:
         f.write("[mutmut]\n")
-        f.write("paths_to_mutate = pysnooper.py\n")  # Adjust this if needed
+        f.write("paths_to_mutate = pysnooper/tracer.py\n")
         f.write("tests_dir = tests/\n\n")
         f.write("[tool:pytest]\n")
         f.write("testpaths = tests\n")

@@ -1,4 +1,5 @@
-libcst ~= 1.7.0 
+libcst~=1.7.0; python_version >= "3.9"
+libcst>=1.0.0,<1.2.0; python_version < "3.9"
 click
 setproctitle
 textual

@@ -14,7 +14,7 @@ def run_cmd(cmd, cwd=None):
     print(f"Running: {cmd}")
     result = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"❌ Command failed:\n{result.stderr}")
+        print(f"❌ Command failed:\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}")
         exit(1)
     return result.stdout.strip()
 
@@ -61,12 +61,16 @@ def main():
         return
 
     line_str = ",".join(map(str, changed_lines))
+    
+    os.environ["PYTHONPATH"] = os.getcwd()
 
     print("🧪 Running mutmut...")
     with open("setup.cfg", "w") as f:
         f.write("[mutmut]\n")
-        f.write("paths_to_mutate = .\n")
-        f.write("tests_dir = tests/\n")
+        f.write("paths_to_mutate = pysnooper.py\n")  # Adjust this if needed
+        f.write("tests_dir = tests/\n\n")
+        f.write("[tool:pytest]\n")
+        f.write("testpaths = tests\n")
 
     run_cmd(f"python -m mutmut run --lines {line_str}")
 

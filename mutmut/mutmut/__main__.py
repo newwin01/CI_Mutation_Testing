@@ -408,7 +408,7 @@ class PytestRunner(TestRunner):
 
         class FailedTestsCollector:
             def pytest_runtest_logreport(self, report):
-                if report.when == "call" and report.failed:
+                if report.when == "call" and (report.failed or report.outcome == "error"):
                     failed_tests.add(report.nodeid.split("::")[-1])
 
         args = ['-q']

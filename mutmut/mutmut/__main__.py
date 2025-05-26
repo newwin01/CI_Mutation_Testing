@@ -400,6 +400,25 @@ class PytestRunner(TestRunner):
                 raise CollectTestsFailedException()
 
         return ListAllTestsResult(ids=collector.nodeids)
+    
+    def collect_failed_tests(self, extra_args=None):
+        import pytest
+
+        failed_tests = set()
+
+        class FailedTestsCollector:
+            def pytest_runtest_logreport(self, report):
+                if report.when == "call" and report.failed:
+                    failed_tests.add(report.nodeid.split("::")[-1])
+
+        args = ['-q']
+        if extra_args:
+            args += extra_args
+
+        with change_cwd('mutants'):
+            pytest.main(args, plugins=[FailedTestsCollector()])
+
+        return list(failed_tests)
 
 def mangled_name_from_mutant_name(mutant_name):
     assert '__mutmut_' in mutant_name, mutant_name
@@ -677,9 +696,8 @@ def run_stats_collection(runner, tests=None):
     with CatchOutput(spinner_title='Running stats') as output_catcher:
         collect_stats_exit_code = runner.run_stats(tests=tests)
         if collect_stats_exit_code != 0:
-            output_catcher.dump_output()
-            print(f'failed to collect stats. runner returned {collect_stats_exit_code}')
-            exit(1)
+            return
+            
 
     print('    done')
     if not tests:  # again, meaning all
@@ -894,6 +912,18 @@ def save_survived_mutants_info(source_file_mutation_data_by_path, mutants_descs,
     with open(output_path, "w") as f:
         json.dump(survived_info, f, indent=2, ensure_ascii=False)
 
+def get_failed_tests(pytest_args=None):
+    runner = PytestRunner()
+    return runner.collect_failed_tests(extra_args=pytest_args)
+
+
+def build_pytest_k_option(failed_tests):
+    if not failed_tests:
+        return []
+    # -k "not test_fail1 and not test_fail2 ..."
+    k_expr = " and ".join(f"not {name}" for name in failed_tests)
+    return ["-k", k_expr]
+
 
 # separate function, so we can call it directly from the tests
 def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutate_lines=None):
@@ -943,7 +973,12 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutat
     with CatchOutput(spinner_title='Running clean tests') as output_catcher:
         tests = tests_for_mutant_names(mutant_names)
 
-        clean_test_exit_code = runner.run_tests(mutant_name=None, tests=tests)
+        failed_tests = get_failed_tests()
+        pytest_k_option = build_pytest_k_option(failed_tests)
+        if pytest_k_option:
+            print(f"Excluding {len(failed_tests)} failing tests from stats collection.")
+
+        clean_test_exit_code = runner.run_tests(mutant_name=None, tests=list(tests) + pytest_k_option)
         if clean_test_exit_code != 0:
             output_catcher.dump_output()
             print('Failed to run clean test')

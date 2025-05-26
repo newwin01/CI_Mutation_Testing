@@ -1,47 +1,50 @@
-name: Mutation Testing CI
-
-on: [push, pull_request]
-
 jobs:
-  mutation-test:
-    runs-on: ubuntu-latest
+   mutation-test:
+     runs-on: ubuntu-latest
 
-    steps:
-    - name: 📦 Checkout repository
-      uses: actions/checkout@v3
+     steps:
+     - name: 📦 Checkout repository
+       uses: actions/checkout@v3
 
-    - name: 🐍 Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+     - name: 🐍 Set up Python
+       uses: actions/setup-python@v4
+       with:
+         python-version: "3.10"
 
-    - name: ✅ Add BugsInPy CLI to PATH
-      run: echo "$GITHUB_WORKSPACE/BugsInPy/framework/bin" >> $GITHUB_PATH
+     - name: ✅ Add BugsInPy CLI to PATH
+       run: echo "$GITHUB_WORKSPACE/BugsInPy/framework/bin" >> $GITHUB_PATH
 
-    - name: 🐍 Confirm Python version
-      run: |
-        python --version
-        which python
+     - name: 🐍 Confirm Python version
+       run: |
+         python --version
+         which python
 
-    - name: 📥 Install dependencies
-      run: |
-        pip install -r mutmut/requirements.txt || true
-        pip install -e mutmut || true
-        pip install python_toolbox
-        pip install requests
-        pip install PyYAML
-        
+     - name: 📥 Install dependencies
+       run: |
+         pip install -r mutmut/requirements.txt  true
+         pip install -e mutmut  true
+         pip install python_toolbox
+         pip install requests
+         pip install PyYAML
 
-    - name: 🧪 Run diff-based mutation testing on keras bug
-      run: |
-        python run_bug_test.py
+     - name: 🌐 Install Ollama CLI
+       run: |
+         curl -fsSL https://ollama.com/install.sh | sh
+         echo "$HOME/.ollama/bin" >> $GITHUB_PATH
 
-    - name: 📤 Upload mutation results
-      uses: actions/upload-artifact@v4
-      with:
-        name: mutation-results
-        path: /tmp/bug-project/**/mutants/survived_mutants.json
+     - name: 📥 Pull CodeLlama-7b model
+       run: ollama pull codellama-7b
 
-    - name: 🤖 Run Ollama mutant explainer
-      run: |
-        python generate_report.py
+     - name: 🧪 Run diff-based mutation testing on keras bug
+       run: |
+         python run_bug_test.py
+
+     - name: 📤 Upload mutation results
+       uses: actions/upload-artifact@v4
+       with:
+         name: mutation-results
+         path: /tmp/bug-project/**/mutants/survived_mutants.json
+
+     - name: 🤖 Run Ollama mutant explainer
+       run: |
+         python generate_report.py what I have to change

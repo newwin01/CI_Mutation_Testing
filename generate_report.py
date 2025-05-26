@@ -2,12 +2,12 @@ import subprocess
 import json
 from explainer import main as explain_main
 
-def run_mutmut():
-    """Run MutMut to generate & test mutants (writes mutants/survived_mutants.json)."""
-    subprocess.run(
-        ["python", "-m", "mutmut", "run", "--lines"],
-        check=True
-    )
+# def run_mutmut():
+#     """Run MutMut to generate & test mutants (writes mutants/survived_mutants.json)."""
+#     subprocess.run(
+#         ["python", "-m", "mutmut", "run", "--lines"],
+#         check=True
+#     )
 
 def collect_and_explain():
     """Read survivors JSON, call Olama, write mutants/survived_mutants_with_explanations.json."""
@@ -21,7 +21,7 @@ def load_records(path: str):
         return json.load(f)
 
 def main():
-    run_mutmut()
+    # run_mutmut()
     collect_and_explain()
     records = load_records("mutants/survived_mutants_with_explanations.json")
 

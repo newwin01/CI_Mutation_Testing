@@ -872,8 +872,9 @@ def run(mutant_names, *, max_children, lines: str, test_file: str):
     _run(mutant_names, max_children, mutate_lines)
 
 def get_function_source_from_file(filepath, func_name):
-    
     import ast
+    # 파라미터라이즈된 이름에서 실제 함수명만 추출
+    func_name = func_name.split("[")[0]
     with open(filepath, "r", encoding="utf-8") as f:
         source = f.read()
     tree = ast.parse(source)

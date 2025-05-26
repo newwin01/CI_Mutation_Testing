@@ -13,7 +13,7 @@ jobs:
     - name: 🐍 Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "3.8"
 
     - name: ✅ Add BugsInPy CLI to PATH
       run: echo "$GITHUB_WORKSPACE/BugsInPy/framework/bin" >> $GITHUB_PATH

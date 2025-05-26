@@ -83,12 +83,12 @@ def main():
     print("🧪 Running mutmut...")
     with open("setup.cfg", "w") as f:
         f.write("[mutmut]\n")
-        f.write("paths_to_mutate = pysnooper/tracer.py\n")
+        f.write("paths_to_mutate = pysnooper/\n")
         f.write("tests_dir = tests/\n\n")
         f.write("[tool:pytest]\n")
         f.write("testpaths = tests\n")
 
-    run_cmd(f"python -m mutmut run --lines {line_str}")
+    run_cmd("python -m mutmut run")
 
     print("📤 Mutation testing completed. Check `mutants/survived_mutants.json` for survivors.")
 

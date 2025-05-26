@@ -45,9 +45,8 @@ def operator_string(
         ]
 
         for mut_func in supported_str_mutations:
-            new_value = f"{prefix}{value[0]}{mut_func(value[1:-1])}{value[-1]}"
-            if "\\N" in new_value:
-                new_value = new_value.replace("\\N", "\\\\N")
+            mutated_content = mut_func(value[1:-1])
+            new_value = prefix + repr(mutated_content)
             if new_value == value:
                 continue
             yield node.with_changes(value=new_value)

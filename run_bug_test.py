@@ -54,6 +54,18 @@ def main():
 
     os.chdir(source_path)
     print(f"📂 Changed to source path: {source_path}")
+    
+    # Fix Python 3.10 compatibility: Mapping moved to collections.abc
+    variables_path = os.path.join("pysnooper", "variables.py")
+    if os.path.exists(variables_path):
+        with open(variables_path, "r") as f:
+            content = f.read()
+        fixed = content.replace("from collections import Mapping, Sequence",
+                                "from collections.abc import Mapping, Sequence")
+        with open(variables_path, "w") as f:
+            f.write(fixed)
+        print("✅ Patched variables.py for Python 3.10 compatibility.")
+
 
     print("🔍 Getting diff...")
     diff_output = run_cmd("git diff HEAD HEAD~1")

@@ -15,7 +15,7 @@ def to_rdjson(records):
     diagnostics = []
 
     for m in records:
-        file_path    =  file_path = m.get("source_file", "").replace("pysnooper/utils.py", "mutated/utils.py")
+        file_path    = m.get("source_file", "unknown")
         line_number  = m.get("line", 1)
         mutant_name  = m.get("mutant_name", "unknown")
         why          = str(m.get("why", "")).replace("\n", " ")

@@ -40,7 +40,7 @@ def to_rdjson(records):
             f"[{mutant_name}] Survived mutant.\n"
             f"Why: {why}\n"
             f"Fix: {fix}\n"
-            f"Test:\n{example_test}"
+            f"Test:\n```python\n{example_test}\n```"
         )
     
         diagnostics.append({
@@ -71,7 +71,7 @@ def main():
     rdjson = to_rdjson(records)
 
     with open("mutmut_report.rdjson", "w", encoding="utf-8") as f:
-        json.dump(rdjson, f, indent=2)
+        json.dump(rdjson, f, indent=2, ensure_ascii=False)
 
 if __name__ == "__main__":
     main()

@@ -21,7 +21,6 @@ class OlamaExplainer:
     """
     def __init__(self, config_path: str = "config.yaml"):
         cfg = load_config(config_path)
-        # 기본값을 /api/generate로 명확히 지정
         self.olama_url = cfg.get("olama_url", "http://localhost:11434/api/generate")
         self.model     = cfg.get("olama_model", "codellama:7b-instruct")
         self.headers   = {"Content-Type": "application/json"}

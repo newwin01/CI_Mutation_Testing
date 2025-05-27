@@ -3,8 +3,9 @@ name: Mutation Testing CI
 on: [push, pull_request]
 
 permissions:
-  pull-requests: write
   contents: read
+  issues: write      
+  pull-requests: write 
 
 jobs:
   mutation-test:

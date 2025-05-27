@@ -2,41 +2,31 @@ import os
 import json
 import requests
 import yaml
+import re
 from typing import Dict, Any, List
 
 def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
-    """Load olama_url & olama_model from YAML."""
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
 class OlamaExplainer:
-    """
-    Connect to Ollama and generate JSON feedback for each survived mutant record.
-    Expects records with keys:
-      - mutant_name (str)
-      - source_file (str)
-      - mutation_desc (str)
-      - tests: List[{test_name, test_code}]
-    Returns a dict with: why, fix, example_test.
-    """
     def __init__(self, config_path: str = "config.yaml"):
         cfg = load_config(config_path)
         self.olama_url = cfg.get("olama_url", "http://localhost:11434/api/generate")
-        self.model     = cfg.get("olama_model", "codellama:7b-instruct")
-        self.headers   = {"Content-Type": "application/json"}
+        self.model = cfg.get("olama_model", "codellama:7b-instruct")
+        self.headers = {"Content-Type": "application/json"}
         self._cache: Dict[str, Dict[str, str]] = {}
-
-    
 
     def explain(self, rec: Dict[str, Any]) -> Dict[str, str]:
         key = rec["mutant_name"]
         if key in self._cache:
             return self._cache[key]
 
-        MAX_PROMPT_CHARS = 3000
+        # Construct prompt
+        mutation_desc = rec.get("mutation_desc", "")[:500]
         prompt = (
             "You are a mutation‐testing expert. Reply ONLY in JSON with keys: why, fix, example_test.\n\n"
-            f"Mutation description: {rec['mutation_desc'][:500]}\n"
+            f"Mutation description:\n{mutation_desc}\n"
             f"File: {rec['source_file']}\n"
         )
 
@@ -49,45 +39,57 @@ class OlamaExplainer:
         else:
             prompt += "No existing tests cover this code path.\n"
 
-        prompt = prompt[:MAX_PROMPT_CHARS]
-
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False
         }
 
-        print(f"[Explaining] {rec['mutant_name']}")
-
+        print(f"[Explaining] {key}")
         try:
-            resp = requests.post(self.olama_url, headers=self.headers, json=payload, timeout=180)
+            resp = requests.post(self.olama_url, headers=self.headers, json=payload, timeout=300)
             resp.raise_for_status()
-            resp_json = resp.json()
-            raw = resp_json.get("response", "").strip()
+            raw = resp.json().get("response", "").strip()
+
+            # Optional debug
+            print(f"[Raw LLM Response]\n{raw[:300]}...\n")
+
             try:
                 obj = json.loads(raw)
             except json.JSONDecodeError:
+                print(f"[Warning] Malformed JSON. Attempting to recover.")
                 s, e = raw.find("{"), raw.rfind("}")
-                obj = json.loads(raw[s:e+1])
+                if s != -1 and e != -1:
+                    try:
+                        obj = json.loads(raw[s:e+1])
+                    except Exception:
+                        obj = {}
+                else:
+                    obj = {}
+
             out = {
-                "why":          obj.get("why", ""),
-                "fix":          obj.get("fix", ""),
-                "example_test": obj.get("example_test", "")
+                "why": obj.get("why", "").strip(),
+                "fix": obj.get("fix", "").strip(),
+                "example_test": obj.get("example_test", "").strip()
             }
+
         except Exception as e:
-            print(f"[Error] {rec['mutant_name']}: {e}")
+            print(f"[Error] {key}: {e}")
             out = {"why": "", "fix": "", "example_test": ""}
+
         self._cache[key] = out
         return out
 
 def main(
-    input_path:  str = "mutants/survived_mutants.json",
+    input_path: str = "mutants/survived_mutants.json",
     output_path: str = "mutants/survived_mutants_with_explanations.json"
 ) -> None:
     if not os.path.exists(input_path):
         raise FileNotFoundError(input_path)
 
-    records: List[Dict[str, Any]] = json.loads(open(input_path, 'r').read())
+    with open(input_path, 'r', encoding='utf-8') as f:
+        records: List[Dict[str, Any]] = json.load(f)
+
     expl = OlamaExplainer()
     for rec in records:
         fb = expl.explain(rec)

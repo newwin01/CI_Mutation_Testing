@@ -1,37 +1,41 @@
 import json
+import os
 from collections import defaultdict
 
-# Load survived mutants
-with open("mutmut_report.rdjson", "r", encoding="utf-8") as f:
-    data = json.load(f)
+EXPLANATION_PATH = "mutants/survived_mutants_with_explanations.json"
 
-# Track all edits to avoid duplicate changes
+# Group all lines to touch by file path
 edits = defaultdict(set)
 
-for diag in data.get("diagnostics", []):
-    path = diag["location"]["path"]
-    line = diag["location"]["range"]["start"]["line"]
+with open(EXPLANATION_PATH, "r", encoding="utf-8") as f:
+    records = json.load(f)
 
-    edits[path].add(line)
+for record in records:
+    path = record.get("source_file")
+    line = record.get("line", 1)
+    if path:
+        edits[path].add(line)
 
-# Edit each file at the specified lines
-for path, lines_to_touch in edits.items():
+# Apply line modifications
+for file_path, lines_to_touch in edits.items():
+    if not os.path.exists(file_path):
+        print(f"❌ File not found: {file_path}")
+        continue
+
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         for line_num in sorted(lines_to_touch):
             idx = line_num - 1
             if 0 <= idx < len(lines):
-                if "# 👀 Mutant tracked by Reviewdog" not in lines[idx]:
-                    lines[idx] = lines[idx].rstrip("\n") + "  # 👀 Mutant tracked by Reviewdog\n"
+                if "# 👀 Reviewdog anchor" not in lines[idx]:
+                    lines[idx] = lines[idx].rstrip("\n") + "  # 👀 Reviewdog anchor\n"
 
-        with open(path, "w", encoding="utf-8") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.writelines(lines)
 
-        print(f"✅ Touched {path} on line(s): {sorted(lines_to_touch)}")
+        print(f"✅ Touched {file_path} on line(s): {sorted(lines_to_touch)}")
 
-    except FileNotFoundError:
-        print(f"❌ File not found: {path}")
     except Exception as e:
-        print(f"❌ Error editing {path}: {e}")
+        print(f"❌ Error editing {file_path}: {e}")

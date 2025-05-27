@@ -57,7 +57,7 @@ def to_rdjson(records):
                 "value": "survived-mutant"
             },
             "source": {
-                "name": "mutmut-ai"
+                "name": "CAMILA"
             }
         })
     

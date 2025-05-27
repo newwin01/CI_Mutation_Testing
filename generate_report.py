@@ -48,12 +48,14 @@ def to_rdjson(records):
             "code": {
                 "value": "survived-mutant"
             },
-            "source": "mutmut-ai"
+            "source": {
+                "name": "mutmut-ai"
+            }
         })
 
     return {
-    "diagnostics": diagnostics
-}
+        "diagnostics": diagnostics
+    }
 
 def main():
     collect_and_explain()

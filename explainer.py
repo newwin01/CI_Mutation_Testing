@@ -26,6 +26,8 @@ class OlamaExplainer:
         self.headers   = {"Content-Type": "application/json"}
         self._cache: Dict[str, Dict[str, str]] = {}
 
+    
+
     def explain(self, rec: Dict[str, Any]) -> Dict[str, str]:
         key = rec["mutant_name"]
         if key in self._cache:

@@ -14,56 +14,56 @@ def load_records(path: str):
 
 
 def to_rdjson(records):
-diagnostics = []
-
-for m in records:
-    file_path    = m.get("source_file", "unknown")
-    mutant_name  = m.get("mutant_name", "unknown")
-    why          = str(m.get("why", ""))
-    fix          = str(m.get("fix", ""))
-
-    # Extract line number from mutation_desc
-    mutation_desc = m.get("mutation_desc", "")
-    match = re.search(r"Line (\d+):", mutation_desc)
-    line_number = int(match.group(1)) if match else 1  # fallback
-
-    # Handle example_test
-    example = m.get("example_test", "")
-    if isinstance(example, dict):
-        test_name = example.get("test_name", "")
-        test_code = example.get("test_code", "")
-        example_test = f"{test_name}:\n{test_code}"
-    else:
-        example_test = str(example)
-
-    message = (
-        f"[{mutant_name}] Survived mutant.\n"
-        f"Why: {why}\n"
-        f"Fix: {fix}\n"
-        f"Test:\n{example_test}"
-    )
-
-    diagnostics.append({
-        "message": message,
-        "location": {
-            "path": file_path,
-            "range": {
-                "start": { "line": line_number, "column": 1 },
-                "end":   { "line": line_number, "column": 1 }
+    diagnostics = []
+    
+    for m in records:
+        file_path    = m.get("source_file", "unknown")
+        mutant_name  = m.get("mutant_name", "unknown")
+        why          = str(m.get("why", ""))
+        fix          = str(m.get("fix", ""))
+    
+        # Extract line number from mutation_desc
+        mutation_desc = m.get("mutation_desc", "")
+        match = re.search(r"Line (\d+):", mutation_desc)
+        line_number = int(match.group(1)) if match else 1  # fallback
+    
+        # Handle example_test
+        example = m.get("example_test", "")
+        if isinstance(example, dict):
+            test_name = example.get("test_name", "")
+            test_code = example.get("test_code", "")
+            example_test = f"{test_name}:\n{test_code}"
+        else:
+            example_test = str(example)
+    
+        message = (
+            f"[{mutant_name}] Survived mutant.\n"
+            f"Why: {why}\n"
+            f"Fix: {fix}\n"
+            f"Test:\n{example_test}"
+        )
+    
+        diagnostics.append({
+            "message": message,
+            "location": {
+                "path": file_path,
+                "range": {
+                    "start": { "line": line_number, "column": 1 },
+                    "end":   { "line": line_number, "column": 1 }
+                }
+            },
+            "severity": "WARNING",
+            "code": {
+                "value": "survived-mutant"
+            },
+            "source": {
+                "name": "mutmut-ai"
             }
-        },
-        "severity": "WARNING",
-        "code": {
-            "value": "survived-mutant"
-        },
-        "source": {
-            "name": "mutmut-ai"
-        }
-    })
-
-return {
-    "diagnostics": diagnostics
-}
+        })
+    
+    return {
+        "diagnostics": diagnostics
+    }
 
 def main():
     collect_and_explain()

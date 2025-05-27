@@ -1,23 +1,32 @@
+import os
 import json
 from collections import defaultdict
 
-# Load survived mutants
+# CHANGE THIS: Path where the cloned/checked-out buggy project lives
+PROJECT_ROOT = "/tmp/bug-project"
+
+def full_path(path):
+    return os.path.join(PROJECT_ROOT, path)
+
 with open("mutmut_report.rdjson", "r", encoding="utf-8") as f:
     data = json.load(f)
 
-# Track all edits to avoid duplicate changes
 edits = defaultdict(set)
 
 for diag in data.get("diagnostics", []):
     path = diag["location"]["path"]
     line = diag["location"]["range"]["start"]["line"]
-
     edits[path].add(line)
 
-# Edit each file at the specified lines
-for path, lines_to_touch in edits.items():
+for rel_path, lines_to_touch in edits.items():
+    abs_path = full_path(rel_path)
+
+    if not os.path.exists(abs_path):
+        print(f"❌ File not found: {abs_path}")
+        continue
+
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(abs_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         for line_num in sorted(lines_to_touch):
@@ -26,12 +35,10 @@ for path, lines_to_touch in edits.items():
                 if "# 👀 Mutant tracked by Reviewdog" not in lines[idx]:
                     lines[idx] = lines[idx].rstrip("\n") + "  # 👀 Mutant tracked by Reviewdog\n"
 
-        with open(path, "w", encoding="utf-8") as f:
+        with open(abs_path, "w", encoding="utf-8") as f:
             f.writelines(lines)
 
-        print(f"✅ Touched {path} on line(s): {sorted(lines_to_touch)}")
+        print(f"✅ Patched {abs_path} on line(s): {sorted(lines_to_touch)}")
 
-    except FileNotFoundError:
-        print(f"❌ File not found: {path}")
     except Exception as e:
-        print(f"❌ Error editing {path}: {e}")
+        print(f"❌ Error editing {abs_path}: {e}")

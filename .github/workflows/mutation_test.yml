@@ -42,11 +42,12 @@ jobs:
       uses: ai-action/ollama-action@v1
       with:
         model: codellama:7b-instruct
-        prompt: Explain the basics of machine learning.
-    - name: Print response
-      run: echo "$response"
-      env:
-        response: ${{ steps.model.outputs.response }}
+        
+    - name: ✅ Verify Ollama is responding
+      run: |
+        curl -X POST http://localhost:11434 \
+          -H "Content-Type: application/json" \
+          -d '{"model": "codellama:7b-instruct", "prompt": "Say hello!", "stream": false}'
 
     - name: 🧪 Run diff-based mutation testing on keras bug
       run: |

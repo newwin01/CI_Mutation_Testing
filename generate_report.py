@@ -52,12 +52,8 @@ def to_rdjson(records):
         })
 
     return {
-        "source": {
-            "name": "mutmut-ai",
-            "url": "https://github.com/newwin01/CI_Mutation_Testing"
-        },
-        "diagnostics": diagnostics
-    }
+    "diagnostics": diagnostics
+}
 
 def main():
     collect_and_explain()

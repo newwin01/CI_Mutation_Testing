@@ -42,6 +42,11 @@ jobs:
       uses: ai-action/ollama-action@v1
       with:
         model: codellama:7b-instruct
+        prompt: Explain the basics of machine learning.
+    - name: Print response
+      run: echo "$response"
+      env:
+        response: ${{ steps.model.outputs.response }}
 
     - name: 🧪 Run diff-based mutation testing on keras bug
       run: |
@@ -72,13 +77,13 @@ jobs:
     #     sleep 5
     
 
-    - name: 🤖 Run Ollama mutant explainer
-      run: |
-        python generate_report.py
+    # - name: 🤖 Run Ollama mutant explainer
+    #   run: |
+    #     python generate_report.py
 
-    - name: 📤 Upload explained mutant file
-      uses: actions/upload-artifact@v4
-      with:
-        name: mutant-explanations
-        path: mutants/survived_mutants_with_explanations.json
+    # - name: 📤 Upload explained mutant file
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: mutant-explanations
+    #     path: mutants/survived_mutants_with_explanations.json
 

@@ -54,7 +54,7 @@ class OlamaExplainer:
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user",   "content": prompt}
             ],
-            "stream": False
+            "stream": False,
             "temperature": 0.2,
             "max_tokens": 200
         }

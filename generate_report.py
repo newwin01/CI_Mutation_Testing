@@ -31,8 +31,10 @@ def to_rdjson(records):
             example_test = str(example).replace("\n", " ")
 
         message = (
-            f"[{mutant_name}] Survived mutant. "
-            f"Why: {why} | Fix: {fix} | Test: {example_test}"
+            f"[{mutant_name}] Survived mutant.\n"
+            f"Why: {why}\n"
+            f"Fix: {fix}\n"
+            f"Test:\n{example_test}"
         )
 
         diagnostics.append({

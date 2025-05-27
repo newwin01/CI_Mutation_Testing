@@ -15,18 +15,24 @@ def to_rdjson(records):
     diagnostics = []
 
     for m in records:
-        file_path    = m["source_file"]
+        file_path    = m.get("source_file", "unknown")
         line_number  = m.get("line", 1)
-        mutant_name  = m["mutant_name"]
-        why          = m["why"].replace("\n", " ")
-        fix          = m["fix"].replace("\n", " ")
-        example_test = m["example_test"].replace("\n", " ")
+        mutant_name  = m.get("mutant_name", "unknown")
+        why          = str(m.get("why", "")).replace("\n", " ")
+        fix          = str(m.get("fix", "")).replace("\n", " ")
+
+        # Handle example_test being a dict or string
+        example = m.get("example_test", "")
+        if isinstance(example, dict):
+            test_name = example.get("test_name", "")
+            test_code = example.get("test_code", "").replace("\n", " ")
+            example_test = f"{test_name}: {test_code}"
+        else:
+            example_test = str(example).replace("\n", " ")
 
         message = (
-            f"[{mutant_name}] Survived mutant.\n"
-            f"Why: {why}\n"
-            f"Fix: {fix}\n"
-            f"Test: {example_test}"
+            f"[{mutant_name}] Survived mutant. "
+            f"Why: {why} | Fix: {fix} | Test: {example_test}"
         )
 
         diagnostics.append({
@@ -48,7 +54,7 @@ def to_rdjson(records):
     return {
         "source": {
             "name": "mutmut-ai",
-            "url": "https://github.com/newwin01/CI_Mutation_Testing.git"
+            "url": "https://github.com/newwin01/CI_Mutation_Testing"
         },
         "diagnostics": diagnostics
     }

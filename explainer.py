@@ -1,4 +1,3 @@
-# explainer.py
 import os
 import json
 import requests
@@ -12,7 +11,7 @@ def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
 
 class OlamaExplainer:
     """
-    Connect to Olama and generate JSON feedback for each survived mutant record.
+    Connect to Ollama and generate JSON feedback for each survived mutant record.
     Expects records with keys:
       - mutant_name (str)
       - source_file (str)
@@ -22,9 +21,9 @@ class OlamaExplainer:
     """
     def __init__(self, config_path: str = "config.yaml"):
         cfg = load_config(config_path)
-        self.olama_url = cfg.get("olama_url", "http://localhost:11434") # default Olama URL everyone uses this localhost
-        self.model    = cfg.get("olama_model", "codellama-7b")
-        self.headers  = {"Content-Type": "application/json"}
+        self.olama_url = cfg.get("olama_url", "http://localhost:11434")  # ⚠️ No /api/generate
+        self.model     = cfg.get("olama_model", "codellama:7b-instruct")
+        self.headers   = {"Content-Type": "application/json"}
         self._cache: Dict[str, Dict[str, str]] = {}
 
     def explain(self, rec: Dict[str, Any]) -> Dict[str, str]:
@@ -32,35 +31,37 @@ class OlamaExplainer:
         if key in self._cache:
             return self._cache[key]
 
-        # Build prompt
+        # 🔐 Construct bounded prompt
+        MAX_PROMPT_CHARS = 3000
         prompt = (
             "You are a mutation‐testing expert. Reply ONLY in JSON with keys: why, fix, example_test.\n\n"
-            f"Mutation description: {rec['mutation_desc']}\n"
+            f"Mutation description: {rec['mutation_desc'][:500]}\n"
             f"File: {rec['source_file']}\n"
         )
+
         tests = rec.get("tests", [])
         if tests:
             prompt += "Existing tests that touch this code path:\n"
-            for t in tests[:2]:
-                # show name and first line of code
-                line = t.get("test_code", "").splitlines()[0]
+            for t in tests[:2]:  # Limit to 2 tests
+                line = t.get("test_code", "").splitlines()[0][:100]
                 prompt += f"- {t['test_name']}: {line}...\n"
         else:
             prompt += "No existing tests cover this code path.\n"
 
+        # Truncate long prompt safely
+        prompt = prompt[:MAX_PROMPT_CHARS]
+
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user",   "content": prompt}
-            ],
-            "stream": False,
-            "temperature": 0.2,
-            "max_tokens": 200
+            "prompt": prompt,
+            "stream": False
         }
-        resp = requests.post(self.olama_url, headers=self.headers, json=payload)
+
+        print(f"[Explaining] {rec['mutant_name']}")  # 👀 For CI logs
+
+        resp = requests.post(self.olama_url, headers=self.headers, json=payload, timeout=60)
         resp.raise_for_status()
-        raw = resp.json()["choices"][0]["message"]["content"].strip()
+        raw = resp.json()["response"].strip()
 
         # parse JSON or fall back to inner JSON block
         try:
@@ -93,7 +94,7 @@ def main(
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(records, f, indent=2, ensure_ascii=False)
-    
+
     print(f"Wrote feedback to {output_path}")
 
 if __name__ == "__main__":

@@ -65,10 +65,18 @@ jobs:
         echo "olama_url: 'http://localhost:11434/api/generate'" > config.yaml
         echo "olama_model: 'codellama:7b-instruct'" >> config.yaml
 
+
     # explainer.py 실행
     - name: 🤖 Run Ollama mutant explainer
       run: |
         python explainer.py
+        
+    - name: 🔧 Add dummy comment to mutant files
+    run: |
+      files=$(jq -r '.[].source_file' mutants/survived_mutants_with_explanations.json | sort -u)
+      for f in $files; do
+        echo "# mutation-trigger-comment" >> "$f"
+      done
 
     - name: 📤 Upload explained mutant file
       uses: actions/upload-artifact@v4

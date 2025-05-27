@@ -72,14 +72,14 @@ jobs:
         python explainer.py
         
     - name: 🔧 Add dummy comment to mutant files
-    run: |
-      files=$(jq -r '.[].source_file' mutants/survived_mutants_with_explanations.json | sort -u)
-      for f in $files; do
-        echo "# mutation-trigger-comment" >> "$f"
-      done
+      run: |
+        files=$(jq -r '.[].source_file' mutants/survived_mutants_with_explanations.json | sort -u)
+        for f in $files; do
+          echo "# mutation-trigger-comment" >> "$f"
+        done
 
     - name: 📤 Upload explained mutant file
       uses: actions/upload-artifact@v4
-      with:
+      with: 
         name: mutant-explanations
         path: mutants/survived_mutants_with_explanations.json

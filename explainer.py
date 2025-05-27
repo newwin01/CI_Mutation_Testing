@@ -59,7 +59,7 @@ class OlamaExplainer:
         print(f"[Explaining] {rec['mutant_name']}")
 
         try:
-            resp = requests.post(self.olama_url, headers=self.headers, json=payload, timeout=60)
+            resp = requests.post(self.olama_url, headers=self.headers, json=payload, timeout=180)
             resp.raise_for_status()
             resp_json = resp.json()
             raw = resp_json.get("response", "").strip()

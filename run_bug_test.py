@@ -15,7 +15,7 @@ def run_cmd(cmd, cwd=None):
     result = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
         print(f"❌ Command failed:\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}")
-        exit(1)
+        raise RuntimeError(f"Command failed: {cmd}")
     return result.stdout.strip()
 
 def extract_changed_lines_from_diff(diff_output):
@@ -49,8 +49,7 @@ def main():
 
     source_path = find_source_path(WORK_DIR)
     if not source_path:
-        print("❌ Could not find source folder after checkout.")
-        exit(1)
+        raise RuntimeError("❌ Could not find source folder after checkout.")
 
     os.chdir(source_path)
     print(f"📂 Changed to source path: {source_path}")
@@ -66,7 +65,6 @@ def main():
             f.write(fixed)
         print("✅ Patched variables.py for Python 3.10 compatibility.")
 
-
     print("🔍 Getting diff...")
     diff_output = run_cmd("git diff HEAD HEAD~1")
     changed_lines = extract_changed_lines_from_diff(diff_output)
@@ -80,6 +78,10 @@ def main():
     # Make sure we can import `pysnooper`
     os.environ["PYTHONPATH"] = os.getcwd()
 
+    # Ensure mutants directory exists for mutmut output
+    mutants_dir = os.path.join(os.getcwd(), "mutants")
+    os.makedirs(mutants_dir, exist_ok=True)
+
     print("🧪 Running mutmut...")
     with open("setup.cfg", "w") as f:
         f.write("[mutmut]\n")
@@ -88,9 +90,14 @@ def main():
         f.write("[tool:pytest]\n")
         f.write("testpaths = tests\n")
 
-    run_cmd("python -m mutmut run")
+    run_cmd(f"python -m mutmut run --lines {line_str}")
 
-    print("📤 Mutation testing completed. Check `mutants/survived_mutants.json` for survivors.")
+    # Check if survived_mutants.json exists
+    survived_path = os.path.join(mutants_dir, "survived_mutants.json")
+    if os.path.exists(survived_path):
+        print(f"📤 Mutation testing completed. Survivors: {survived_path}")
+    else:
+        print("⚠️ No survived_mutants.json found after mutation testing.")
 
 if __name__ == "__main__":
     main()

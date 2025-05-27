@@ -2,6 +2,10 @@ name: Mutation Testing CI
 
 on: [push, pull_request]
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
   mutation-test:
     runs-on: ubuntu-latest
@@ -30,14 +34,14 @@ jobs:
         pip install python_toolbox
         pip install requests
         pip install PyYAML
+        pip install jq
 
-    # Ollama는 ai-action으로 실행
+    # Start Ollama
     - name: 🤖 Start Ollama using ai-action
       uses: ai-action/ollama-action@v1
       with:
         model: codellama:7b-instruct
 
-    # Ollama API 엔드포인트를 /api/generate로 수정
     - name: ✅ Verify Ollama is responding
       run: |
         curl -X POST http://localhost:11434/api/generate \
@@ -59,13 +63,11 @@ jobs:
         mkdir -p mutants
         cp $(find /tmp/bug-project -name "survived_mutants.json" | head -n 1) mutants/
 
-    # config.yaml 생성 (explainer.py에서 사용)
     - name: 📝 Create config.yaml for explainer
       run: |
         echo "olama_url: 'http://localhost:11434/api/generate'" > config.yaml
         echo "olama_model: 'codellama:7b-instruct'" >> config.yaml
 
-    # explainer.py 실행
     - name: 🤖 Run Ollama mutant explainer
       run: |
         python explainer.py
@@ -75,3 +77,26 @@ jobs:
       with:
         name: mutant-explanations
         path: mutants/survived_mutants_with_explanations.json
+
+    - name: 💬 Post LLM mutant explanations to PR
+      if: github.event_name == 'pull_request'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "### 🧬 LLM Mutant Feedback Summary" > comment.md
+        count=$(jq length mutants/survived_mutants_with_explanations.json)
+        if [ "$count" -eq "0" ]; then
+          echo "✅ No surviving mutants found!" >> comment.md
+        else
+          jq -c '.[]' mutants/survived_mutants_with_explanations.json | while read -r row; do
+            file=$(echo "$row" | jq -r '.source_file')
+            mutant=$(echo "$row" | jq -r '.mutant_name')
+            why=$(echo "$row" | jq -r '.why' | tr '\n' ' ')
+            fix=$(echo "$row" | jq -r '.fix' | tr '\n' ' ')
+            example=$(echo "$row" | jq -r '.example_test' | tr '\n' ' ')
+            echo -e "\n---\n🔬 \`$mutant\` in \`$file\`\n- **Why**: $why\n- **Fix**: $fix\n- **Test Suggestion**: \`$example\`" >> comment.md
+          done
+        fi
+        echo "" >> comment.md
+        gh auth setup-git
+        gh pr comment "$GITHUB_REF_NAME" --body-file comment.md || echo "⚠️ Could not post comment (not a PR context)"

@@ -57,6 +57,12 @@ jobs:
       run: |
         mkdir -p mutants
         cp $(find /tmp/bug-project -name "survived_mutants.json" | head -n 1) mutants/
+    - name: ✅ Verify Ollama is responding
+      run: |
+        curl -X POST http://localhost:11434 \
+          -H "Content-Type: application/json" \
+          -d '{"model": "codellama:7b-instruct", "messages": [{"role": "user", "content": "ping"}], "stream": false}'
+
 
     # - name: 🚀 Start Ollama HTTP API
     #   run: |
@@ -64,6 +70,7 @@ jobs:
     #     nohup ollama serve --listen 11434 >/dev/null 2>&1 &
     #     # Give it a few seconds to spin up
     #     sleep 5
+    
 
     - name: 🤖 Run Ollama mutant explainer
       run: |

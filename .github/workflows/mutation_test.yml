@@ -78,25 +78,19 @@ jobs:
         name: mutant-explanations
         path: mutants/survived_mutants_with_explanations.json
 
-    - name: 💬 Post LLM mutant explanations to PR
-      if: github.event_name == 'pull_request'
+    - name: 💬 Post LLM mutant explanations to an Issue
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "### 🧬 LLM Mutant Feedback Summary" > comment.md
-        count=$(jq length mutants/survived_mutants_with_explanations.json)
-        if [ "$count" -eq "0" ]; then
-          echo "✅ No surviving mutants found!" >> comment.md
-        else
-          jq -c '.[]' mutants/survived_mutants_with_explanations.json | while read -r row; do
-            file=$(echo "$row" | jq -r '.source_file')
-            mutant=$(echo "$row" | jq -r '.mutant_name')
-            why=$(echo "$row" | jq -r '.why' | tr '\n' ' ')
-            fix=$(echo "$row" | jq -r '.fix' | tr '\n' ' ')
-            example=$(echo "$row" | jq -r '.example_test' | tr '\n' ' ')
-            echo -e "\n---\n🔬 \`$mutant\` in \`$file\`\n- **Why**: $why\n- **Fix**: $fix\n- **Test Suggestion**: \`$example\`" >> comment.md
-          done
-        fi
-        echo "" >> comment.md
-        gh auth setup-git
-        gh pr comment "$GITHUB_REF_NAME" --body-file comment.md || echo "⚠️ Could not post comment (not a PR context)"
+        ISSUE_NUMBER=42  # 🔁 Replace with your issue number
+        echo "### 🧬 LLM Mutant Feedback Summary" > issue_comment.md
+        jq -c '.[]' mutants/survived_mutants_with_explanations.json | while read -r row; do
+          file=$(echo "$row" | jq -r '.source_file')
+          mutant=$(echo "$row" | jq -r '.mutant_name')
+          why=$(echo "$row" | jq -r '.why' | tr '\n' ' ')
+          fix=$(echo "$row" | jq -r '.fix' | tr '\n' ' ')
+          example=$(echo "$row" | jq -r '.example_test' | tr '\n' ' ')
+          echo -e "\n---\n🔬 \`$mutant\` in \`$file\`\n- **Why**: $why\n- **Fix**: $fix\n- **Test Suggestion**: \`$example\`" >> issue_comment.md
+        done
+        gh issue comment "$ISSUE_NUMBER" --body-file issue_comment.md
+

@@ -1,16 +1,7 @@
-import subprocess
 import json
 from explainer import main as explain_main
 
-# def run_mutmut():
-#     """Run MutMut to generate & test mutants (writes mutants/survived_mutants.json)."""
-#     subprocess.run(
-#         ["python", "-m", "mutmut", "run", "--lines"],
-#         check=True
-#     )
-
 def collect_and_explain():
-    """Read survivors JSON, call Olama, write mutants/survived_mutants_with_explanations.json."""
     explain_main(
         input_path="mutants/survived_mutants.json",
         output_path="mutants/survived_mutants_with_explanations.json"
@@ -20,12 +11,9 @@ def load_records(path: str):
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def main():
-    # run_mutmut()
-    collect_and_explain()
-    records = load_records("mutants/survived_mutants_with_explanations.json")
+def to_rdjson(records):
+    diagnostics = []
 
-    # Emit one warning annotation per surviving mutant
     for m in records:
         file_path    = m["source_file"]
         line_number  = m.get("line", 1)
@@ -34,15 +22,44 @@ def main():
         fix          = m["fix"].replace("\n", " ")
         example_test = m["example_test"].replace("\n", " ")
 
-        msg = (
-            f"[AI Mutant Explainer] `{mutant_name}`\n"
-            f"Why it survived: {why}\n"
+        message = (
+            f"[{mutant_name}] Survived mutant.\n"
+            f"Why: {why}\n"
             f"Fix: {fix}\n"
-            f"Example: `{example_test}`"
-        ).replace("\n", " | ")
+            f"Test: {example_test}"
+        )
 
-        # This line creates an inline annotation at file_path:line_number
-        print(f"::warning file={file_path},line={line_number}::{msg}")
+        diagnostics.append({
+            "message": message,
+            "location": {
+                "path": file_path,
+                "range": {
+                    "start": { "line": line_number, "column": 1 },
+                    "end":   { "line": line_number, "column": 1 }
+                }
+            },
+            "severity": "WARNING",
+            "code": {
+                "value": "survived-mutant"
+            },
+            "source": "mutmut-ai"
+        })
+
+    return {
+        "source": {
+            "name": "mutmut-ai",
+            "url": "https://github.com/newwin01/CI_Mutation_Testing.git"
+        },
+        "diagnostics": diagnostics
+    }
+
+def main():
+    collect_and_explain()
+    records = load_records("mutants/survived_mutants_with_explanations.json")
+    rdjson = to_rdjson(records)
+
+    with open("mutmut_report.rdjson", "w", encoding="utf-8") as f:
+        json.dump(rdjson, f, indent=2)
 
 if __name__ == "__main__":
     main()

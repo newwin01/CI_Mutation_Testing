@@ -1,2 +1,2 @@
-olama_url:   "http://localhost:11434/api/chat"
+olama_url:   "http://localhost:11434/api/generate"
 olama_model: "codellama-7b-instruct"

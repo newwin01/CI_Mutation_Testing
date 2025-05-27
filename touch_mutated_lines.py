@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from collections import defaultdict
 
 EXPLANATION_PATH = "mutants/survived_mutants_with_explanations.json"
@@ -12,7 +13,12 @@ with open(EXPLANATION_PATH, "r", encoding="utf-8") as f:
 
 for record in records:
     path = record.get("source_file")
-    line = record.get("line", 1)
+    mutation_desc = record.get("mutation_desc", "")
+
+    # Extract the correct line number from mutation_desc like "Line 13:"
+    match = re.search(r"Line (\d+):", mutation_desc)
+    line = int(match.group(1)) if match else 1  # fallback to line 1
+
     if path:
         edits[path].add(line)
 

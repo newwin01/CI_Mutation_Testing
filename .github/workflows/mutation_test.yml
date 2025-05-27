@@ -69,7 +69,11 @@ jobs:
       run: |
         echo "olama_url: 'http://localhost:11434/api/generate'" > config.yaml
         echo "olama_model: 'codellama:7b-instruct'" >> config.yaml
-
+    - name: 🔧 Force file modification to enable annotation
+      run: |
+        mkdir -p mutated
+        cp pysnooper/utils.py mutated/utils.py
+        sed -i '1s|$|  # touched for annotation|' mutated/utils.py
 
     # explainer.py 실행
     - name: 🤖 Run Ollama mutant explainer

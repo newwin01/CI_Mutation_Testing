@@ -93,3 +93,7 @@ jobs:
           -level=warning \
           -fail-on-error=false \
           < mutmut_report.rdjson
+    - name: 🕵️ Show rdjson content
+      run: |
+        cat mutmut_report.rdjson || echo "rdjson file not found!"
+

@@ -21,7 +21,8 @@ class OlamaExplainer:
     """
     def __init__(self, config_path: str = "config.yaml"):
         cfg = load_config(config_path)
-        self.olama_url = cfg.get("olama_url", "http://localhost:11434")  # ⚠️ No /api/generate
+        # 기본값을 /api/generate로 명확히 지정
+        self.olama_url = cfg.get("olama_url", "http://localhost:11434/api/generate")
         self.model     = cfg.get("olama_model", "codellama:7b-instruct")
         self.headers   = {"Content-Type": "application/json"}
         self._cache: Dict[str, Dict[str, str]] = {}
@@ -31,7 +32,6 @@ class OlamaExplainer:
         if key in self._cache:
             return self._cache[key]
 
-        # 🔐 Construct bounded prompt
         MAX_PROMPT_CHARS = 3000
         prompt = (
             "You are a mutation‐testing expert. Reply ONLY in JSON with keys: why, fix, example_test.\n\n"
@@ -42,13 +42,12 @@ class OlamaExplainer:
         tests = rec.get("tests", [])
         if tests:
             prompt += "Existing tests that touch this code path:\n"
-            for t in tests[:2]:  # Limit to 2 tests
+            for t in tests[:2]:
                 line = t.get("test_code", "").splitlines()[0][:100]
                 prompt += f"- {t['test_name']}: {line}...\n"
         else:
             prompt += "No existing tests cover this code path.\n"
 
-        # Truncate long prompt safely
         prompt = prompt[:MAX_PROMPT_CHARS]
 
         payload = {
@@ -57,24 +56,26 @@ class OlamaExplainer:
             "stream": False
         }
 
-        print(f"[Explaining] {rec['mutant_name']}")  # 👀 For CI logs
+        print(f"[Explaining] {rec['mutant_name']}")
 
-        resp = requests.post(self.olama_url, headers=self.headers, json=payload, timeout=60)
-        resp.raise_for_status()
-        raw = resp.json()["response"].strip()
-
-        # parse JSON or fall back to inner JSON block
         try:
-            obj = json.loads(raw)
-        except json.JSONDecodeError:
-            s, e = raw.find("{"), raw.rfind("}")
-            obj = json.loads(raw[s:e+1])
-
-        out = {
-            "why":          obj.get("why", ""),
-            "fix":          obj.get("fix", ""),
-            "example_test": obj.get("example_test", "")
-        }
+            resp = requests.post(self.olama_url, headers=self.headers, json=payload, timeout=60)
+            resp.raise_for_status()
+            resp_json = resp.json()
+            raw = resp_json.get("response", "").strip()
+            try:
+                obj = json.loads(raw)
+            except json.JSONDecodeError:
+                s, e = raw.find("{"), raw.rfind("}")
+                obj = json.loads(raw[s:e+1])
+            out = {
+                "why":          obj.get("why", ""),
+                "fix":          obj.get("fix", ""),
+                "example_test": obj.get("example_test", "")
+            }
+        except Exception as e:
+            print(f"[Error] {rec['mutant_name']}: {e}")
+            out = {"why": "", "fix": "", "example_test": ""}
         self._cache[key] = out
         return out
 

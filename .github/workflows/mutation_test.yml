@@ -31,21 +31,16 @@ jobs:
         pip install requests
         pip install PyYAML
 
-    # - name: 🌐 Install Ollama CLI
-    #   run: |
-    #     curl -fsSL https://ollama.com/install.sh | sh
-    #     echo "$HOME/.ollama/bin" >> $GITHUB_PATH
-        
-    # - name: 📥 Pull CodeLlama-7b model
-    #   run: ollama pull codellama:7b-instruct
+    # Ollama는 ai-action으로 실행
     - name: 🤖 Start Ollama using ai-action
       uses: ai-action/ollama-action@v1
       with:
         model: codellama:7b-instruct
-        
+
+    # Ollama API 엔드포인트를 /api/generate로 수정
     - name: ✅ Verify Ollama is responding
       run: |
-        curl -X POST http://localhost:11434 \
+        curl -X POST http://localhost:11434/api/generate \
           -H "Content-Type: application/json" \
           -d '{"model": "codellama:7b-instruct", "prompt": "Say hello!", "stream": false}'
 
@@ -63,28 +58,20 @@ jobs:
       run: |
         mkdir -p mutants
         cp $(find /tmp/bug-project -name "survived_mutants.json" | head -n 1) mutants/
-    - name: ✅ Verify Ollama is responding
+
+    # config.yaml 생성 (explainer.py에서 사용)
+    - name: 📝 Create config.yaml for explainer
       run: |
-        curl -X POST http://localhost:11434 \
-          -H "Content-Type: application/json" \
-          -d '{"model": "codellama:7b-instruct", "messages": [{"role": "user", "content": "ping"}], "stream": false}'
+        echo "olama_url: 'http://localhost:11434/api/generate'" > config.yaml
+        echo "olama_model: 'codellama:7b-instruct'" >> config.yaml
 
+    # explainer.py 실행
+    - name: 🤖 Run Ollama mutant explainer
+      run: |
+        python explainer.py
 
-    # - name: 🚀 Start Ollama HTTP API
-    #   run: |
-    #     # Launch Ollama in the background listening on 11434
-    #     nohup ollama serve --listen 11434 >/dev/null 2>&1 &
-    #     # Give it a few seconds to spin up
-    #     sleep 5
-    
-
-    # - name: 🤖 Run Ollama mutant explainer
-    #   run: |
-    #     python generate_report.py
-
-    # - name: 📤 Upload explained mutant file
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: mutant-explanations
-    #     path: mutants/survived_mutants_with_explanations.json
-
+    - name: 📤 Upload explained mutant file
+      uses: actions/upload-artifact@v4
+      with:
+        name: mutant-explanations
+        path: mutants/survived_mutants_with_explanations.json

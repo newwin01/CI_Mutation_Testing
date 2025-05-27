@@ -22,7 +22,7 @@ class OlamaExplainer:
     """
     def __init__(self, config_path: str = "config.yaml"):
         cfg = load_config(config_path)
-        self.olama_url = cfg.get("olama_url", "http://localhost:11434/api/chat") # default Olama URL everyone uses this localhost
+        self.olama_url = cfg.get("olama_url", "http://localhost:11434/api/generate") # default Olama URL everyone uses this localhost
         self.model    = cfg.get("olama_model", "codellama-7b")
         self.headers  = {"Content-Type": "application/json"}
         self._cache: Dict[str, Dict[str, str]] = {}
@@ -54,6 +54,7 @@ class OlamaExplainer:
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user",   "content": prompt}
             ],
+            "stream": False
             "temperature": 0.2,
             "max_tokens": 200
         }

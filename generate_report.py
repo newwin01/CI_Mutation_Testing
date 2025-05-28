@@ -30,19 +30,19 @@ def summarize_mutation(mutation_desc: str) -> str:
 
 def to_rdjson(records):
     diagnostics = []
-    
+
     for m in records:
         file_path    = m.get("source_file", "unknown")
         mutant_name  = m.get("mutant_name", "unknown")
         why          = str(m.get("why", "")).strip()
-        fix          = str(m.get("fix", "")).strip()
+        how_to_kill  = str(m.get("how to kill", "")).strip()
 
         # Extract line number from mutation_desc
         mutation_desc = m.get("mutation_desc", "")
         match = re.search(r"Line (\d+):", mutation_desc)
-        line_number = int(match.group(1)) if match else 1  # fallback
+        line_number = int(match.group(1)) if match else 1
 
-        # Mutation summary from original/mutated lines
+        # Mutation summary
         mutation_summary = summarize_mutation(mutation_desc)
 
         # Handle example_test
@@ -52,13 +52,14 @@ def to_rdjson(records):
             test_code = example.get("test_code", "")
             example_test = f"{test_name}:\n{test_code}"
         else:
-            example_test = str(example)
+            # Decode escaped \n to actual newlines
+            example_test = str(example).encode('utf-8').decode('unicode_escape')
 
-        # Final message
+        # Build message
         message = (
             f"[{mutant_name}] Survived mutant. {mutation_summary}\n"
             f"Why: {why}\n"
-            f"Fix: {fix}\n"
+            f"How to kill: {how_to_kill}\n"
             f"Test:\n```python\n{example_test}\n```"
         )
 

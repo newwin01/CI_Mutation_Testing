@@ -28,7 +28,7 @@ class OlamaExplainer:
             "You are a mutation testing expert. Analyze the mutation and suggest how to detect it with a test.\n"
             "Reply ONLY in valid JSON format using these keys:\n"
             "- why: explain why this mutant survived\n"
-            "- fix: describe how to change the code or add tests to kill the mutant\n"
+            "- how to kill: describe what kind of test or code change would kill this mutant\n"
             "- example_test: write a complete pytest-style test function that would kill this mutant\n\n"
             f"Mutation description:\n{mutation_desc}\n"
             f"File: {rec['source_file']}\n"
@@ -73,13 +73,13 @@ class OlamaExplainer:
 
             out = {
                 "why": obj.get("why", "").strip(),
-                "fix": obj.get("fix", "").strip(),
+                "how to kill": obj.get("how to kill", "").strip(),
                 "example_test": obj.get("example_test", "").strip()
             }
 
         except Exception as e:
             print(f"[Error] {key}: {e}")
-            out = {"why": "", "fix": "", "example_test": ""}
+            out = {"why": "", "how to kill": "", "example_test": ""}
 
         self._cache[key] = out
         return out

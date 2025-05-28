@@ -873,7 +873,6 @@ def run(mutant_names, *, max_children, lines: str, test_file: str):
 
 def get_function_source_from_file(filepath, func_name):
     import ast
-    # 파라미터라이즈된 이름에서 실제 함수명만 추출
     func_name = func_name.split("[")[0]
     with open(filepath, "r", encoding="utf-8") as f:
         source = f.read()
@@ -886,7 +885,7 @@ def get_function_source_from_file(filepath, func_name):
 def save_survived_mutants_info(source_file_mutation_data_by_path, mutants_descs, output_path="mutants/survived_mutants.json"):
     survived_info = []
     for path, m in source_file_mutation_data_by_path.items():
-        # 파일별 mutant_name -> desc 매핑 가져오기
+
         mutant_name_to_desc = mutants_descs.get(str(path), {})
 
         for mutant_name, exit_code in m.exit_code_by_key.items():
@@ -1101,6 +1100,17 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutat
 
     save_survived_mutants_info(source_file_mutation_data_by_path, mutants_descs)
 
+    print("\n[Number of tests executed per mutant]")
+    total_tests_run = 0
+    all_tests = set()
+    for path, m in source_file_mutation_data_by_path.items():
+        for mutant_name in m.exit_code_by_key:
+            tests = mutmut.tests_by_mangled_function_name.get(mangled_name_from_mutant_name(mutant_name), set())
+            print(f"{mutant_name}: {len(tests)} tests")
+            total_tests_run += len(tests)
+            all_tests.update(tests)
+
+    print(f"\nTotal number of tests executed across all mutants (including duplicates): {total_tests_run}")
 
 def tests_for_mutant_names(mutant_names):
     tests = set()

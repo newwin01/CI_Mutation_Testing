@@ -49,7 +49,7 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{"model": "codellama:7b-instruct", "prompt": "Say hello!", "stream": false}'
 
-    - name: 🧪 Run diff-based mutation testing on keras bug
+    - name: 🧪 Run diff-based mutation testing on bug
       run: |
         python run_bug_test.py
 

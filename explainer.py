@@ -25,11 +25,15 @@ class OlamaExplainer:
         # Construct prompt
         mutation_desc = rec.get("mutation_desc", "")[:500]
         prompt = (
-            "You are a mutation‐testing expert. Reply ONLY in JSON with keys: why, fix, example_test.\n\n"
+            "You are a mutation testing expert. Analyze the mutation and suggest how to detect it with a test.\n"
+            "Reply ONLY in valid JSON format using these keys:\n"
+            "- why: explain why this mutant survived\n"
+            "- fix: describe how to change the code or add tests to kill the mutant\n"
+            "- example_test: write a complete pytest-style test function that would kill this mutant\n\n"
             f"Mutation description:\n{mutation_desc}\n"
             f"File: {rec['source_file']}\n"
         )
-
+        
         tests = rec.get("tests", [])
         if tests:
             prompt += "Existing tests that touch this code path:\n"

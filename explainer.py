@@ -33,19 +33,14 @@ class OlamaExplainer:
 
         MAX_PROMPT_CHARS = 3000
         prompt = (
-            "You are a mutation testing expert. Your task is to analyze why a mutant survived, "
-            "propose how the code or tests could be fixed, and give an example test case that would kill the mutant.\n\n"
-            "Reply STRICTLY in JSON format with keys:\n"
-            "- why: a concise reason why this mutant survived\n"
-            "- fix: describe what kind of test or code change would kill this mutant\n"
-            "- example_test: provide a full minimal Python test function that would detect the mutation\n\n"
-            f"Mutation description:\n{rec['mutation_desc'][:500]}\n"
+            "You are a mutation‐testing expert. Reply ONLY in JSON with keys: why, fix, example_test.\n\n"
+            f"Mutation description: {rec['mutation_desc'][:500]}\n"
             f"File: {rec['source_file']}\n"
         )
 
         tests = rec.get("tests", [])
         if tests:
-            prompt += "Relevant existing tests:\n"
+            prompt += "Existing tests that touch this code path:\n"
             for t in tests[:2]:
                 line = t.get("test_code", "").splitlines()[0][:100]
                 prompt += f"- {t['test_name']}: {line}...\n"

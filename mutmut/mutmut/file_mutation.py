@@ -192,6 +192,46 @@ class MutationVisitor(cst.CSTVisitor):
         # 3) @property decorators break the trampoline signature assignment (which expects it to be a function)
         if isinstance(node, (cst.FunctionDef, cst.ClassDef)) and len(node.decorators):
             return True
+        
+         # 1. __main__ guard
+        if isinstance(node, cst.If):
+            test = node.test
+            if (
+                isinstance(test, cst.Comparison)
+                and any(
+                    isinstance(comp, cst.ComparisonTarget)
+                    and isinstance(comp.operator, cst.Equal)
+                    and isinstance(comp.comparator, cst.SimpleString)
+                    and comp.comparator.evaluated_value == "__main__"
+                    for comp in test.comparisons
+                )
+                and isinstance(test.left, cst.Name)
+                and test.left.value == "__name__"
+            ):
+                return True
+
+        # 2. Version check (sys.version_info)
+        if isinstance(node, cst.Attribute):
+            if (
+                isinstance(node.value, cst.Name)
+                and node.value.value == "sys"
+                and node.attr.value == "version_info"
+            ):
+                return True
+
+        # 3. Low-level APIs (os, sys, subprocess)
+        if isinstance(node, cst.Call):
+            if isinstance(node.func, cst.Attribute):
+                module_name = ""
+                if isinstance(node.func.value, cst.Name):
+                    module_name = node.func.value.value
+                if module_name in {"os", "sys", "subprocess"}:
+                    return True
+
+        # 4. print statements
+        if isinstance(node, cst.Call):
+            if isinstance(node.func, cst.Name) and node.func.value == "print":
+                return True
 
         return False
 

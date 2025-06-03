@@ -1,0 +1,6 @@
+include HISTORY.rst
+include LICENSE
+include README.rst
+include requirements.txt
+exclude tests/*.*
+recursive-include mutmut *.*

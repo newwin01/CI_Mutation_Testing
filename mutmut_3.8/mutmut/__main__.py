@@ -515,12 +515,13 @@ def print_stats(source_file_mutation_data_by_path, force_output=False):
     print('    summary:')
     print(f'    {s.total} mutants, {s.killed} killed, {s.survived} survived, {s.no_tests} no tests')
 
-    for x in source_file_mutation_data_by_path.values():
-        print(f'    {x.path}:')
-        for k, v in x.exit_code_by_key.items():
-            if v is None:
-                continue
-            print(f'        {k}: {status_by_exit_code[v]}')
+    if mutmut.config.debug:
+        for x in source_file_mutation_data_by_path.values():
+            print(f'    {x.path}:')
+            for k, v in x.exit_code_by_key.items():
+                if v is None:
+                    continue
+                print(f'        {k}: {status_by_exit_code[v]}')
 
 
 def run_forced_fail_test(runner):
@@ -1106,14 +1107,11 @@ def _run(mutant_names: Union[tuple, list], max_children: Union[None, int], mutat
         mutants_descs[str(path)] = mutant_name_to_desc
 
     save_survived_mutants_info(source_file_mutation_data_by_path, mutants_descs)
-
-    print("\n[Number of tests executed per mutant]")
     total_tests_run = 0
     all_tests = set()
     for path, m in source_file_mutation_data_by_path.items():
         for mutant_name in m.exit_code_by_key:
             tests = mutmut.tests_by_mangled_function_name.get(mangled_name_from_mutant_name(mutant_name), set())
-            print(f"{mutant_name}: {len(tests)} tests")
             total_tests_run += len(tests)
             all_tests.update(tests)
 

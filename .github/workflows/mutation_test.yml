@@ -100,11 +100,6 @@ jobs:
           -fail-on-error=false \
           < mutmut_report.rdjson
       
-    - name: 🧰 Install GitHub CLI
-      run: |
-        sudo apt update
-        sudo apt install -y gh
-
     - name: 🆕 Create new issue with LLM mutant explanations
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

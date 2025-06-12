@@ -3,6 +3,7 @@ name: Mutation Testing CI
 on: [push, pull_request]
 permissions:
   contents: read
+  issues: write
   pull-requests: write
 
 jobs:
@@ -52,7 +53,7 @@ jobs:
         curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b ./
         echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
 
-    - name: 🧪 Run diff-based mutation testing on keras bug
+    - name: 🧪 Run diff-based mutation testing on bug
       run: |
         python run_bug_test.py
 
@@ -73,11 +74,11 @@ jobs:
         echo "olama_url: 'http://localhost:11434/api/generate'" > config.yaml
         echo "olama_model: 'codellama:7b-instruct'" >> config.yaml
 
-    # explainer.py 실행
+    # explainer.py 실행, TT
     - name: 🤖 Run Ollama mutant explainer
       run: |
         python generate_report.py
-
+        
     - name: 📤 Upload explained mutant file
       uses: actions/upload-artifact@v4
       with: 
@@ -98,4 +99,25 @@ jobs:
           -level=warning \
           -fail-on-error=false \
           < mutmut_report.rdjson
+      
+    - name: 🆕 Create new issue with LLM mutant explanations
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "### 🧬 LLM Mutant Feedback Summary" > issue_body.md
+
+        jq -c '.[]' mutants/survived_mutants_with_explanations.json | while read -r row; do
+          file=$(echo "$row" | jq -r '.source_file')
+          mutant=$(echo "$row" | jq -r '.mutant_name')
+          why=$(echo "$row" | jq -r '.why' | tr '\n' ' ')
+          fix=$(echo "$row" | jq -r '."how to kill"' | tr '\n' ' ')
+          example=$(echo "$row" | jq -r '.example_test' | sed 's/\\n/\
+          /g')
+          echo -e "\n---\n🔬 \`$mutant\` in \`$file\`\n- **Why**: $why\n- **How to kill**: $fix\n- **Test Suggestion**:\n\`\`\`python\n$example\n\`\`\`" >> issue_body.md
+        done
+
+        gh issue create \
+          --title "🧬 Mutation Feedback for $GITHUB_SHA" \
+          --body-file issue_body.md
+
 

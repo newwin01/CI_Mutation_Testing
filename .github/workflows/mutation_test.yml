@@ -3,6 +3,7 @@ name: Mutation Testing CI
 on: [push, pull_request]
 permissions:
   contents: read
+  issues: write
   pull-requests: write
 
 jobs:
@@ -52,7 +53,7 @@ jobs:
         curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b ./
         echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
 
-    - name: 🧪 Run diff-based mutation testing on keras bug
+    - name: 🧪 Run diff-based mutation testing on bug
       run: |
         python run_bug_test.py
 
@@ -77,7 +78,7 @@ jobs:
     - name: 🤖 Run Ollama mutant explainer
       run: |
         python generate_report.py
-
+        
     - name: 📤 Upload explained mutant file
       uses: actions/upload-artifact@v4
       with: 
@@ -89,14 +90,55 @@ jobs:
         python touch_mutated_lines.py
        
     - name: 🐶 Annotate PR with Reviewdog
-      if: github.event_name == 'pull_request'
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         ./reviewdog -f=rdjson \
           -name="CAMILA" \
           -reporter=github-pr-review \
-          -diff="git diff FETCH_HEAD" \
           -level=warning \
           -fail-on-error=false \
           < mutmut_report.rdjson
+      
+    - name: 🧰 Install GitHub CLI
+      run: |
+        sudo apt update
+        sudo apt install -y gh
+
+    - name: 🔐 Authenticate GitHub CLI
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "${GITHUB_TOKEN}" | gh auth login --with-token
+
+    # Optional: close previous mutation feedback issue (uncomment if needed)
+    # - name: 🧹 Close existing mutation feedback issues (optional)
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     existing=$(gh issue list --state open --search "🧬 Mutation Feedback" --json number --jq '.[0].number')
+    #     if [ "$existing" != "" ]; then
+    #       gh issue close "$existing" --comment "Closing old feedback in favor of new mutation results."
+    #     fi
+
+    - name: 🆕 Create new issue with LLM mutant explanations
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "### 🧬 LLM Mutant Feedback Summary" > issue_body.md
+
+        jq -c '.[]' mutants/survived_mutants_with_explanations.json | while read -r row; do
+          file=$(echo "$row" | jq -r '.source_file')
+          mutant=$(echo "$row" | jq -r '.mutant_name')
+          why=$(echo "$row" | jq -r '.why' | tr '\n' ' ')
+          fix=$(echo "$row" | jq -r '.fix' | tr '\n' ' ')
+          example=$(echo "$row" | jq -r '.example_test' | tr '\n' ' ')
+          echo -e "\n---\n🔬 \`$mutant\` in \`$file\`\n- **Why**: $why\n- **Fix**: $fix\n- **Test Suggestion**: \`$example\`" >> issue_body.md
+        done
+
+        gh issue create \
+          --title "🧬 Mutation Feedback for $GITHUB_SHA" \
+          --body-file issue_body.md \
+          --repo "${{ github.repository }}"
+
+

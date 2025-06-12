@@ -1,6 +1,9 @@
 name: Mutation Testing CI
 
 on: [push, pull_request]
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   mutation-test:
@@ -43,6 +46,11 @@ jobs:
         curl -X POST http://localhost:11434/api/generate \
           -H "Content-Type: application/json" \
           -d '{"model": "codellama:7b-instruct", "prompt": "Say hello!", "stream": false}'
+          
+    - name: 🐶 Install reviewdog
+      run: |
+        curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b ./
+        echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
 
     - name: 🧪 Run diff-based mutation testing on keras bug
       run: |
@@ -68,10 +76,26 @@ jobs:
     # explainer.py 실행
     - name: 🤖 Run Ollama mutant explainer
       run: |
-        python explainer.py
+        python generate_report.py
 
     - name: 📤 Upload explained mutant file
       uses: actions/upload-artifact@v4
-      with:
+      with: 
         name: mutant-explanations
         path: mutants/survived_mutants_with_explanations.json
+       
+    - name: 🛠️ Touch mutated lines to force diff
+      run: |
+        python touch_mutated_lines.py
+       
+    - name: 🐶 Annotate PR with Reviewdog
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ./reviewdog -f=rdjson \
+          -name="CAMILA" \
+          -reporter=github-pr-review \
+          -level=warning \
+          -fail-on-error=false \
+          < mutmut_report.rdjson
+

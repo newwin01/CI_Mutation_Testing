@@ -105,22 +105,6 @@ jobs:
         sudo apt update
         sudo apt install -y gh
 
-    - name: 🔐 Authenticate GitHub CLI
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        echo "${GITHUB_TOKEN}" | gh auth login --with-token
-
-    # Optional: close previous mutation feedback issue (uncomment if needed)
-    # - name: 🧹 Close existing mutation feedback issues (optional)
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   run: |
-    #     existing=$(gh issue list --state open --search "🧬 Mutation Feedback" --json number --jq '.[0].number')
-    #     if [ "$existing" != "" ]; then
-    #       gh issue close "$existing" --comment "Closing old feedback in favor of new mutation results."
-    #     fi
-
     - name: 🆕 Create new issue with LLM mutant explanations
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -138,7 +122,6 @@ jobs:
 
         gh issue create \
           --title "🧬 Mutation Feedback for $GITHUB_SHA" \
-          --body-file issue_body.md \
-          --repo "${{ github.repository }}"
+          --body-file issue_body.md
 
 

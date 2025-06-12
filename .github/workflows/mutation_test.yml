@@ -111,8 +111,7 @@ jobs:
           mutant=$(echo "$row" | jq -r '.mutant_name')
           why=$(echo "$row" | jq -r '.why' | tr '\n' ' ')
           fix=$(echo "$row" | jq -r '."how to kill"' | tr '\n' ' ')
-          example=$(echo "$row" | jq -r '.example_test' | sed 's/\\n/\
-          /g')
+          example=$(echo "$row" | jq -r '.example_test' | python3 -c 'import sys, json; print(json.loads(sys.stdin.read()))')
           echo -e "\n---\n🔬 \`$mutant\` in \`$file\`\n- **Why**: $why\n- **How to kill**: $fix\n- **Test Suggestion**:\n\`\`\`python\n$example\n\`\`\`" >> issue_body.md
         done
 

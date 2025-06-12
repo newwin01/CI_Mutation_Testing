@@ -1,6 +1,8 @@
 import json
 import re
 from explainer import main as explain_main
+import os
+
 
 def collect_and_explain():
     explain_main(
@@ -85,13 +87,33 @@ def to_rdjson(records):
         "diagnostics": diagnostics
     }
 
+def write_issue_body(records, output_file="issue_body.md"):
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("### 🧬 LLM Mutant Feedback Summary\n")
+        for row in records:
+            file = row.get("source_file", "unknown")
+            mutant = row.get("mutant_name", "unknown")
+            why = row.get("why", "").replace('\n', ' ').strip()
+            fix = row.get("how to kill", "").replace('\n', ' ').strip()
+            example = row.get("example_test", "")
+            example = str(example).encode('utf-8').decode('unicode_escape')
+
+            f.write(f"\n---\n🔬 `{mutant}` in `{file}`\n")
+            f.write(f"- **Why**: {why}\n")
+            f.write(f"- **How to kill**: {fix}\n")
+            f.write(f"- **Test Suggestion**:\n```python\n{example}\n```\n")
+
 def main():
     collect_and_explain()
     records = load_records("mutants/survived_mutants_with_explanations.json")
-    rdjson = to_rdjson(records)
 
-    with open("mutmut_report.rdjson", "w", encoding="utf-8") as f:
+    # Generate rdjson for reviewdog
+    rdjson = to_rdjson(records)
+    with open("mutmut_report.rdjson", "w", encoding='utf-8') as f:
         json.dump(rdjson, f, indent=2, ensure_ascii=False)
+
+    # Generate markdown issue body
+    write_issue_body(records)
 
 if __name__ == "__main__":
     main()

@@ -110,13 +110,14 @@ jobs:
           file=$(echo "$row" | jq -r '.source_file')
           mutant=$(echo "$row" | jq -r '.mutant_name')
           why=$(echo "$row" | jq -r '.why' | tr '\n' ' ')
-          fix=$(echo "$row" | jq -r '.fix' | tr '\n' ' ')
+          fix=$(echo "$row" | jq -r '.how to kill' | tr '\n' ' ')
           example=$(echo "$row" | jq -r '.example_test' | tr '\n' ' ')
-          echo -e "\n---\n🔬 \`$mutant\` in \`$file\`\n- **Why**: $why\n- **Fix**: $fix\n- **Test Suggestion**: \`$example\`" >> issue_body.md
+          echo -e "\n---\n🔬 \`$mutant\` in \`$file\`\n- **Why**: $why\n- **How to kill**: $fix\n- **Test Suggestion**:\n\`\`\`python\n$example\n\`\`\`" >> issue_body.md
         done
 
         gh issue create \
           --title "🧬 Mutation Feedback for $GITHUB_SHA" \
           --body-file issue_body.md
+
 
 

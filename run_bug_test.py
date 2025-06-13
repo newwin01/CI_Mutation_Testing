@@ -3,7 +3,7 @@ import subprocess
 import yaml
 import re
 
-CONFIG_FILE = "mutation_config.yml"
+CONFIG_FILE = os.path.join(".github", "workflows", "mutation_config.yml")
 WORK_DIR = os.getcwd()
 
 def run_cmd(cmd, cwd=None):

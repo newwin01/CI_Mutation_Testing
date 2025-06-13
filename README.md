@@ -31,15 +31,57 @@
 
 1. **Create a new branch** from `main`: let's say new branch called 'test'
 2. **Commit your target files (the code you want to test) to this branch.**
-3. **Create a pull request from the new branch (e.g., test) to main.**
-4. **Once the pull request is created, GitHub Actions will automatically trigger the CAMILLA pipeline.**
-5. **In the pull request page, you will see inline annotations added by Reviewdog**:
+   → See the section below: "🛠️ How to Change Mutation Target Paths"
+4. **Create a pull request from the new branch (e.g., test) to main.**
+5. **Once the pull request is created, GitHub Actions will automatically trigger the CAMILLA pipeline.**
+6. **In the pull request page, you will see inline annotations added by Reviewdog**:
 Surviving mutant information
 **🤖 LLM explanations:**
 - why the mutant survived
 - how to kill it
 - a suggested pytest-style test to detect it
 ![image](https://github.com/user-attachments/assets/c0807e05-a7c1-4610-b141-924c034c9485)
+
+---
+
+## 🛠️ How to Change Mutation Target Paths
+
+CAMILLA uses **mannual path** based on the specific buggy project being checked out by BugsInPy.  
+To change the mutation target, you must **edit the source code in `run_bug_test.py`**:
+
+1. **Set the Project and Bug ID** at the top of `run_bug_test.py`:
+   ```python
+   PROJECT = "PySnooper"  # Name of the BugsInPy project
+   BUG_ID = 1             # Bug number to check out
+   ```
+
+2. **Update the mutation path** in the `setup.cfg` writing section:
+   ```python
+   with open("setup.cfg", "w") as f:
+       f.write("[mutmut]\n")
+       f.write("paths_to_mutate = pysnooper/\n")  # <--- Change this line to your target directory or file
+       f.write("tests_dir = tests/\n\n")
+       f.write("[tool:pytest]\n")
+       f.write("testpaths = tests\n")
+   ```
+   - For example, if you want to target a specific file in Keras, change to:
+     ```
+     paths_to_mutate = keras/engine/base_layer.py
+     ```
+   - Or for an entire directory:
+     ```
+     paths_to_mutate = keras/
+     ```
+
+3. **(Optional) If the project uses a different structure** (e.g., files under `source/`), adjust the path accordingly:
+   - Example:
+     ```
+     paths_to_mutate = source/keras/engine/base_layer.py
+     ```
+  Also please check .github/workflows/mutation_test.yml file and update necessarylines there. 
+   
+4. **Commit and push your changes** to `run_bug_test.py`, then open a pull request.  
+   CAMILLA will automatically use the updated path for mutation testing in the next CI run.
 
 ---
 ## 💻 Running Ollama with Self-Hosted Runner (Optional)

@@ -49,9 +49,9 @@ If you want to run LLM models locally (faster and private):
 - Python 3.10+
 - Installed Ollama
 
-**1. Install Ollama**
+1. **Install Ollama**
    You can use any LLM model as you wish. In the Github CI pipeline we are using codellama:7b-instruct.
-**2. Register GitHub Self-Hosted Runner**
+2. **Register GitHub Self-Hosted Runner**
 - Go to your repo → Settings → Actions → Runners
 - Click "New self-hosted runner"
 - Follow setup instructions:

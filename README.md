@@ -55,13 +55,13 @@ Installed Ollama
 - Go to your repo → Settings → Actions → Runners
 - Click "New self-hosted runner"
 - Follow setup instructions:
- <pre lang="markdown"> ```bash
+ <pre lang="markdown"> ```
   ./config.sh --url https://github.com/<user>/<repo> --token <token>
 ./run.sh
 ``` </pre>
 
 3.Modify workflow YAML in the .github workflow mutant-test.yaml:
-  <pre lang="markdown"> ```bash runs-on: [self-hosted] ``` </pre>
+  <pre lang="markdown"> ``` runs-on: [self-hosted] ``` </pre>
 4.Ensure Ollama is running at http://localhost:11434 for explainer.py to use it.
   📖 For more help, refer to GitHub Docs:
 https://docs.github.com/en/actions/hosting-your-own-runners

@@ -42,7 +42,7 @@ Surviving mutant information
 ![image](https://github.com/user-attachments/assets/c0807e05-a7c1-4610-b141-924c034c9485)
 
 ---
-##💻 Running Ollama with Self-Hosted Runner (Optional)
+## 💻 Running Ollama with Self-Hosted Runner (Optional)
 If you want to run LLM models locally (faster and private):
 **Requirements:**
 - A machine with GPU and Linux/macOS

@@ -21,7 +21,7 @@
 ## 📦 Requirements
 
 - Python <= 3.10
-- `mutmut` (customized version in our repository)
+- `mutmut` (customized version in our repository). Refer to each README in the mutmut and mutmut_3.8 folders to get to know more.
 - (Optional) Ollama installed
 - (Optional) Self-hosted runner with GPU
 
@@ -63,7 +63,7 @@ If you want to run LLM models locally (faster and private):
 **3.Modify workflow YAML in the .github workflow mutant-test.yaml:**
   <pre lang="markdown"> ``` runs-on: [self-hosted] ``` </pre>
 
-**4.Ensure Ollama is running at http://localhost:11434 for  'explainer.py' to use it.**
+**4.Ensure Ollama is running at http://localhost:11434 for `explainer.py` to use it.**
   
   **📖 For more help, refer to GitHub Docs**:
 https://docs.github.com/en/actions/hosting-your-own-runners

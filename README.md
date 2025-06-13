@@ -20,7 +20,7 @@
 
 ## 📦 Requirements
 
-- Python <= 3.10
+- Python <= 3.10, >=3.8
 - `mutmut` (customized version in our repository). Refer to each README in the mutmut and mutmut_3.8 folders to get to know more.
 - (Optional) Ollama installed
 - (Optional) Self-hosted runner with GPU

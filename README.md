@@ -60,6 +60,7 @@ To change the mutation target, you must **edit the source code in `run_bug_test.
    with open("setup.cfg", "w") as f:
        f.write("[mutmut]\n")
        f.write("paths_to_mutate = pysnooper/\n")  # <--- Change this line to your target directory or file
+       #so as you can see here, pysnooper should be located in root directory of test branch
        f.write("tests_dir = tests/\n\n")
        f.write("[tool:pytest]\n")
        f.write("testpaths = tests\n")
@@ -72,8 +73,9 @@ To change the mutation target, you must **edit the source code in `run_bug_test.
      ```
      paths_to_mutate = keras/
      ```
-
-3. **(Optional) If the project uses a different structure** (e.g., files under `source/`), adjust the path accordingly:
+    
+   
+4. **(Optional) If the project uses a different structure** (e.g., files under `source/`), adjust the path accordingly:
    - Example:
      ```
      paths_to_mutate = source/keras/engine/base_layer.py

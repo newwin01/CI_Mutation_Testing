@@ -34,7 +34,7 @@ jobs:
         pip install requests
         pip install PyYAML
 
-    # Ollama는 ai-action으로 실행
+    # Ollama는 ai-action으로 실행 ll
     - name: 🤖 Start Ollama using ai-action
       uses: ai-action/ollama-action@v1
       with:

@@ -1,14 +1,10 @@
-import subprocess
 import os
+import subprocess
+import yaml
 import re
 
-# === CONFIGURATION ===
-PROJECT = "PySnooper"
-BUG_ID = 1
-BUGS_REPO_PATH = "BugsInPy"
-WORK_DIR = "/tmp/bug-project"  # GitHub runner has access to this temp dir
-
-BUGSINPY_BIN = f"{BUGS_REPO_PATH}/framework/bin"
+CONFIG_FILE = "mutation_config.yml"
+WORK_DIR = os.getcwd()
 
 def run_cmd(cmd, cwd=None):
     print(f"Running: {cmd}")
@@ -18,7 +14,8 @@ def run_cmd(cmd, cwd=None):
         raise RuntimeError(f"Command failed: {cmd}")
     return result.stdout.strip()
 
-def extract_changed_lines_from_diff(diff_output):
+def extract_changed_lines_from_diff(path):
+    diff_output = run_cmd(f"git diff HEAD~1 HEAD -- {path}")
     changed_lines = set()
     for line in diff_output.splitlines():
         match = re.match(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", line)
@@ -29,70 +26,51 @@ def extract_changed_lines_from_diff(diff_output):
                 changed_lines.add(i)
     return sorted(changed_lines)
 
-def find_source_path(base_dir):
-    for root, dirs, files in os.walk(base_dir):
-        if ".git" in dirs and "setup.py" in files:
-            return root
-    return None
+def load_config():
+    if not os.path.exists(CONFIG_FILE):
+        raise FileNotFoundError(f"❌ Config file {CONFIG_FILE} not found.")
+    with open(CONFIG_FILE) as f:
+        cfg = yaml.safe_load(f)
+    return cfg.get("target_paths", [])
 
 def main():
-    os.environ["PATH"] += f":{os.path.abspath(BUGSINPY_BIN)}"
-
-    print(f"📦 Checking out buggy version of {PROJECT}...")
-    run_cmd(f"bugsinpy-checkout -p {PROJECT} -v 0 -i {BUG_ID} -w {WORK_DIR}")
-
-    print("📂 Directory structure after checkout:")
-    print(run_cmd(f"find {WORK_DIR}"))
-
-    print("📄 Python files under checkout:")
-    print(run_cmd(f"find {WORK_DIR} -name '*.py'"))
-
-    source_path = find_source_path(WORK_DIR)
-    if not source_path:
-        raise RuntimeError("❌ Could not find source folder after checkout.")
-
-    os.chdir(source_path)
-    print(f"📂 Changed to source path: {source_path}")
-    
-    # Fix Python 3.10 compatibility: Mapping moved to collections.abc
-    variables_path = os.path.join("pysnooper", "variables.py")
-    if os.path.exists(variables_path):
-        with open(variables_path, "r") as f:
-            content = f.read()
-        fixed = content.replace("from collections import Mapping, Sequence",
-                                "from collections.abc import Mapping, Sequence")
-        with open(variables_path, "w") as f:
-            f.write(fixed)
-        print("✅ Patched variables.py for Python 3.10 compatibility.")
-
-    print("🔍 Getting diff...")
-    diff_output = run_cmd("git diff HEAD HEAD~1")
-    changed_lines = extract_changed_lines_from_diff(diff_output)
-    print(f"📌 Changed lines: {changed_lines}")
-    if not changed_lines:
-        print("❌ No changed lines found. Skipping mutation.")
+    target_paths = load_config()
+    if not target_paths:
+        print("❌ No target paths found in config.")
         return
 
-    line_str = ",".join(map(str, changed_lines))
-
-    # Make sure we can import `pysnooper`
     os.environ["PYTHONPATH"] = os.getcwd()
-
-    # Ensure mutants directory exists for mutmut output
     mutants_dir = os.path.join(os.getcwd(), "mutants")
     os.makedirs(mutants_dir, exist_ok=True)
 
-    print("🧪 Running mutmut...")
-    with open("setup.cfg", "w") as f:
-        f.write("[mutmut]\n")
-        f.write("paths_to_mutate = pysnooper/\n")
-        f.write("tests_dir = tests/\n\n")
-        f.write("[tool:pytest]\n")
-        f.write("testpaths = tests\n")
+    for path in target_paths:
+        if not os.path.exists(path):
+            print(f"⚠️ Path does not exist: {path}")
+            continue
 
-    run_cmd(f"python -m mutmut run --lines {line_str}")
+        print(f"🔍 Analyzing: {path}")
+        changed_lines = extract_changed_lines_from_diff(path)
+        if not changed_lines:
+            print(f"⚠️ No changed lines in {path}. Skipping.")
+            continue
 
-    # Check if survived_mutants.json exists
+        line_str = ",".join(map(str, changed_lines))
+        top_folder = path.split("/")[0]
+        test_dir = "tests"  # Assumes tests are in ./tests/
+
+        print(f"🧪 Mutating: {path} @ lines {line_str}")
+
+        # Write setup.cfg
+        with open("setup.cfg", "w") as f:
+            f.write("[mutmut]\n")
+            f.write(f"paths_to_mutate = {path}\n")
+            f.write(f"tests_dir = {test_dir}\n\n")
+            f.write("[tool:pytest]\n")
+            f.write(f"testpaths = {test_dir}\n")
+
+        run_cmd(f"python -m mutmut run --paths_to_mutate {path} --lines {line_str}")
+
+    # Check for survivors
     survived_path = os.path.join(mutants_dir, "survived_mutants.json")
     if os.path.exists(survived_path):
         print(f"📤 Mutation testing completed. Survivors: {survived_path}")

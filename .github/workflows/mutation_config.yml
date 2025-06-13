@@ -1,0 +1,3 @@
+target_paths:
+  - "pysnooper/utils.py"
+  # - "my_folder/"
